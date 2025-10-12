@@ -8,6 +8,9 @@ import storeAuth from "@/routes/auth/store";
 import driverAuth from "@/routes/auth/driver";
 import adminDrivers from "@/routes/admin/drivers";
 import adminAuth from "@/routes/auth/admin";
+import universalAuth from "@/routes/auth/login";
+import fs from "fs";
+import path from "path";
 
 const app = express();
 
@@ -24,6 +27,12 @@ app.get("/", (_req, res) => {
   res.send("Gokir backend is running. Try GET /health");
 });
 
+// pastikan folder uploads ada
+const uploadDir = path.resolve(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+// serve file statis
+app.use("/uploads", express.static(uploadDir));
 
 
 // health
@@ -35,6 +44,7 @@ app.use("/auth/store", storeAuth);
 app.use("/auth/driver", driverAuth);
 app.use("/admin/drivers", adminDrivers);
 app.use("/auth/admin", adminAuth);
+app.use("/auth", universalAuth);
 // 404 JSON fallback
 app.use((req, res) => {
   res.status(404).json({ ok: false, error: { message: `Route ${req.method} ${req.path} not found` } });

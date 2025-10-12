@@ -65,6 +65,8 @@ const othersItems: NavItem[] = [
     subItems: [
       { name: "Sign In", path: "/signin", pro: false },
       { name: "Sign Up", path: "/signup", pro: false },
+      { name: "Sign Up Store", path: "/signup-store", pro: false },
+      { name: "Sign Up Driver", path: "/signup-driver", pro: false },
     ],
   },
 ];

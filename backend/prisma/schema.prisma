@@ -91,24 +91,21 @@ model StoreProfile {
 }
 
 model DriverProfile {
-  id     String @id @default(cuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id])
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  name            String
+  nim             String
+  birthPlace      String
+  birthDate       DateTime
+  idCardUrl       String
+  studentCardUrl  String
+  facePhotoUrl    String
+  whatsapp        String?    // 👈 tambahkan ini
+  status          String     @default("PENDING")
+  user            User       @relation(fields: [userId], references: [id])
+  createdAt       DateTime   @default(now())
 
-  name           String
-  nim            String
-  birthPlace     String
-  birthDate      DateTime
-  idCardUrl      String // KTP
-  studentCardUrl String // KTM
-  facePhotoUrl   String
-  status         DriverStatus @default(PENDING)
-
-  reviewedById String?
-  reviewedBy   User?   @relation("ReviewedBy", fields: [reviewedById], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  User User[] @relation("ReviewedBy")
 }
 
 model VerificationToken {

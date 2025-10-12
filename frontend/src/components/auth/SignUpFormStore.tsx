@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router"; // atau "react-router-dom" sesuai setup
+import { Link, useNavigate } from "react-router"; // atau "react-router-dom"
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
 import Input from "../form/input/InputField";
@@ -14,15 +14,15 @@ declare global {
   }
 }
 
-export default function SignUpForm() {
+export default function SignUpFormStore() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   // form states
-  const [fullName, setFullName] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
+  const [storeName, setStoreName] = useState("");
+  const [whatsapp, setWhatsapp] = useState(""); // akan dipakai saat lengkapi profil
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
@@ -30,7 +30,7 @@ export default function SignUpForm() {
   const googleBtnRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
 
-  // --- Google Identity Services button ---
+  // --- Google Identity Services button (STORE) ---
   useEffect(() => {
     if (!window.google || !googleBtnRef.current || !GOOGLE_CLIENT_ID) return;
 
@@ -38,7 +38,7 @@ export default function SignUpForm() {
       try {
         setLoading(true);
         setMsg(null);
-        const r = await fetch(`${API_URL}/auth/customer/login-google`, {
+        const r = await fetch(`${API_URL}/auth/store/login-google`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -46,7 +46,7 @@ export default function SignUpForm() {
         });
         const json = await r.json();
         if (!r.ok || !json.ok) throw new Error(json?.error?.message || "Google sign-in failed");
-        navigate("/dashboard/customer");
+        navigate("/dashboard/store");
       } catch (e: any) {
         setMsg(e.message || "Google sign-in error");
       } finally {
@@ -71,7 +71,7 @@ export default function SignUpForm() {
     });
   }, []);
 
-  // --- Submit: Email Register ---
+  // --- Submit: Email Register (STORE) ---
   const onSubmitRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -79,8 +79,8 @@ export default function SignUpForm() {
       setMsg("Silakan setujui Syarat & Privasi terlebih dahulu.");
       return;
     }
-    if (!fullName || !email || !password || !confirm) {
-      setMsg("Nama lengkap, email, password, dan konfirmasi wajib diisi.");
+    if (!storeName || !email || !password || !confirm) {
+      setMsg("Nama Toko, email, password, dan konfirmasi wajib diisi.");
       return;
     }
     if (password.length < 6) {
@@ -91,23 +91,19 @@ export default function SignUpForm() {
       setMsg("Konfirmasi password tidak cocok.");
       return;
     }
-    // validasi sederhana no WA (opsional)
-    if (whatsapp && whatsapp.replace(/\D/g, "").length < 8) {
-      setMsg("Nomor WA terlalu pendek.");
-      return;
-    }
 
     try {
       setLoading(true);
       setMsg(null);
+
+      // Endpoint backend store saat ini menerima: { email, password, storeName }
       const payload = {
-        name: fullName.trim(),
-        whatsapp: whatsapp.trim() || undefined,
         email: email.trim(),
-        password: password,
+        password,
+        storeName: storeName.trim(),
       };
 
-      const r = await fetch(`${API_URL}/auth/customer/register-email`, {
+      const r = await fetch(`${API_URL}/auth/store/register-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -116,7 +112,7 @@ export default function SignUpForm() {
       const json = await r.json();
       if (!r.ok || !json.ok) throw new Error(json?.error?.message || "Register gagal");
 
-      // sukses → arahkan ke halaman signin
+      // sukses → arahkan ke signin (login manual/email & pw)
       navigate("/signin");
     } catch (e: any) {
       setMsg(e.message || "Terjadi kesalahan");
@@ -146,7 +142,7 @@ export default function SignUpForm() {
         <div>
           <div className="flex items-center justify-start gap-3 mb-4">
             <h1 className="font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Daftar Customer
+              Daftar Store
             </h1>
           </div>
 
@@ -173,24 +169,24 @@ export default function SignUpForm() {
 
             <form onSubmit={onSubmitRegister}>
               <div className="space-y-5">
-                {/* Nama Lengkap */}
+                {/* Nama Toko */}
                 <div>
                   <Label>
-                    Nama Lengkap<span className="text-error-500">*</span>
+                    Nama Toko<span className="text-error-500">*</span>
                   </Label>
                   <Input
                     type="text"
-                    id="fullName"
-                    name="fullName"
-                    placeholder="Masukkan nama lengkap"
-                    value={fullName}
-                    onChange={(e: any) => setFullName(e.target.value)}
+                    id="storeName"
+                    name="storeName"
+                    placeholder="Contoh: Warung Gokir"
+                    value={storeName}
+                    onChange={(e: any) => setStoreName(e.target.value)}
                   />
                 </div>
 
-                {/* No WhatsApp */}
+                {/* No WhatsApp (opsional, simpan saat lengkapi profil) */}
                 <div>
-                  <Label>No WhatsApp</Label>
+                  <Label>No WhatsApp (opsional)</Label>
                   <Input
                     type="tel"
                     id="whatsapp"

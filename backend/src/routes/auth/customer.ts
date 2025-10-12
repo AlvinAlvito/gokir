@@ -10,14 +10,16 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 router.post("/register-email", async (req, res) => {
   const schema = z.object({
+    name: z.string().min(2),
+    whatsapp: z.string().min(8).max(20).optional(), // validasi sederhana
     email: z.string().email(),
-    password: z.string().min(6),
-    name: z.string().min(1).optional()
+    password: z.string().min(6)
   });
+
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(fail("Invalid payload"));
 
-  const { email, password, name } = parsed.data;
+  const { name, whatsapp, email, password } = parsed.data;
 
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) return res.status(409).json(fail("Email already registered", "EMAIL_TAKEN"));
@@ -28,15 +30,17 @@ router.post("/register-email", async (req, res) => {
       email,
       passwordHash,
       role: "CUSTOMER",
-      isEmailVerified: false, // bisa dibuat flow verifikasi email OTP nanti
-      customerProfile: { create: { name: name ?? null } }
+      isEmailVerified: false,
+      phone: whatsapp ?? null,
+      customerProfile: { create: { name, whatsapp: whatsapp ?? null } }
     }
   });
 
-  await issueSession(res, user.id, user.role);
+  // Tidak auto-login: cukup catat audit & balas sukses
   await logAudit(user.id, "CUSTOMER_REGISTER_EMAIL", req);
-  res.json(ok({ user: { id: user.id, role: user.role, email: user.email }}));
+  return res.status(201).json(ok({ message: "Registered. Please sign in." }));
 });
+
 
 router.post("/login-email", async (req, res) => {
   const schema = z.object({
