@@ -12,11 +12,14 @@ import SignUpOption from "./pages/AuthPages/SignUpOption";
 import SignUpStore from "./pages/AuthPages/SignUpStore";
 import SignUpDriver from "./pages/AuthPages/SignUpDriver";
 
+// Customer
+import CustomerDashboard from "./pages/Customer/Dashboard";
+import CustomerProfil from "./pages/Customer/Profil";
+
 // Dashboards (buat halaman placeholder kalau belum ada)
 import NotFound from "./pages/OtherPage/NotFound";
 
 // OPTIONAL: placeholder per-role
-const CustomerDashboard = () => <div>Customer Dashboard</div>;
 const StoreDashboard = () => <div>Store Dashboard</div>;
 const DriverDashboard = () => <div>Driver Dashboard</div>;
 const AdminDashboard = () => <div>Admin Dashboard</div>;
@@ -54,6 +57,8 @@ export default function App() {
 
               {/* Role dashboards */}
               <Route path="/dashboard/customer" element={<CustomerDashboard />} />
+              <Route path="/profile/customer" element={<CustomerProfil />} />
+
               <Route path="/dashboard/store" element={<StoreDashboard />} />
               <Route path="/dashboard/driver" element={<DriverDashboard />} />
               <Route path="/dashboard/admin" element={<AdminDashboard />} />

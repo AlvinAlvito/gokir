@@ -2,60 +2,81 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
+import fs from "fs";
+import path from "path";
+
 import { authMiddleware } from "@/lib/auth";
+
+// Auth routes
 import customerAuth from "@/routes/auth/customer";
 import storeAuth from "@/routes/auth/store";
 import driverAuth from "@/routes/auth/driver";
-import adminDrivers from "@/routes/admin/drivers";
 import adminAuth from "@/routes/auth/admin";
 import universalAuth from "@/routes/auth/login";
-import fs from "fs";
-import path from "path";
 import sessionRoute from "@/routes/auth/session";
 
+// Feature routes
+import adminDrivers from "@/routes/admin/drivers";
+import customerProfileRoute from "@/routes/customer/profile";
+
 const app = express();
+
+// Hindari ETag supaya /auth/session tidak 304
 app.set("etag", false);
 
-app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
-  credentials: true
-}));
+// CORS (cookie auth)
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+  })
+);
+
+// Common middlewares
 app.use(cookieParser());
 app.use(express.json({ limit: "5mb" }));
 app.use(morgan("dev"));
+
+// (Opsional) auth middleware untuk attach req.user jika ada sesi
 app.use(authMiddleware);
 
+// Root ping
 app.get("/", (_req, res) => {
   res.send("Gokir backend is running. Try GET /health");
 });
 
-// pastikan folder uploads ada
+// --- Static uploads (satu sumber kebenaran) ---
 const uploadDir = path.resolve(process.cwd(), "uploads");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-// serve file statis
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 app.use("/uploads", express.static(uploadDir));
 
-
-// health
+// --- Health ---
 app.get("/health", (_req, res) => res.json({ ok: true, service: "gokir-backend" }));
 
-// routes
+// --- Routes ---
+// Session (GET /auth/session, POST /auth/logout)
+app.use("/auth", sessionRoute);
+
+// Auth per-aktor
 app.use("/auth/customer", customerAuth);
 app.use("/auth/store", storeAuth);
 app.use("/auth/driver", driverAuth);
-app.use("/admin/drivers", adminDrivers);
 app.use("/auth/admin", adminAuth);
+
+// Universal username/email login
 app.use("/auth", universalAuth);
 
-app.use(cookieParser());
-app.use(express.json());
+// Fitur lain
+app.use("/admin/drivers", adminDrivers);
+app.use("/customer/profile", customerProfileRoute);
 
-// ... route auth lainnya ...
-
-app.use("/auth", sessionRoute);
-// 404 JSON fallback
+// --- 404 JSON fallback ---
 app.use((req, res) => {
-  res.status(404).json({ ok: false, error: { message: `Route ${req.method} ${req.path} not found` } });
+  res
+    .status(404)
+    .json({ ok: false, error: { message: `Route ${req.method} ${req.path} not found` } });
 });
+
 export default app;

@@ -26,11 +26,8 @@ type NavItem = {
 // ====== MENU DEFINITIONS BERDASARKAN ROLE ======
 const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   CUSTOMER: [
-    {
-      icon: <GridIcon />,
-      name: "Dashboard",
-      subItems: [{ name: "Beranda", path: "/dashboard/customer" }],
-    },
+    { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/customer" },
+    { icon: <UserCircleIcon />, name: "Profil", path: "/profile/customer" },
     { icon: <ListIcon />, name: "Pesan Makanan", path: "/orders/food" },
     { icon: <ListIcon />, name: "Antar Penumpang", path: "/orders/ride" },
     {
@@ -38,7 +35,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
       name: "Riwayat",
       subItems: [{ name: "Semua Riwayat", path: "/history" }],
     },
-    { icon: <UserCircleIcon />, name: "Profil", path: "/profile" },
+    
   ],
   STORE: [
     {
