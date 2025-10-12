@@ -68,15 +68,32 @@ router.post("/login-google", async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(fail("Invalid payload"));
 
-  try {
-    const ticket = await googleClient.verifyIdToken({
-      idToken: parsed.data.idToken,
-      audience: process.env.GOOGLE_CLIENT_ID
-    });
-    const payload = ticket.getPayload();
-    if (!payload?.email) return res.status(400).json(fail("Google email missing"));
+  const expectedAud = process.env.GOOGLE_CLIENT_ID!;
+  const idToken = parsed.data.idToken;
 
-    const email = payload.email;
+  try {
+    // 1) Verifikasi tanda tangan token dulu (tanpa audience) untuk bisa baca payload
+    const ticket = await googleClient.verifyIdToken({ idToken });
+    const payload = ticket.getPayload();
+
+    if (!payload) return res.status(401).json(fail("No payload from Google"));
+    const { email, sub, aud, iss, email_verified } = payload;
+
+    // 2) Cek audience manual supaya error message jelas
+    if (aud !== expectedAud) {
+      return res.status(401).json(
+        fail(
+          `Google token audience mismatch. got_aud=${aud} expected_aud=${expectedAud}`
+        )
+      );
+    }
+
+    if (!email) return res.status(400).json(fail("Google email missing"));
+    if (!email_verified) {
+      return res.status(401).json(fail("Google email not verified"));
+    }
+
+    // 3) Lanjutkan login/registrasi seperti biasa
     let user = await prisma.user.findUnique({ where: { email }});
     if (!user) {
       user = await prisma.user.create({
@@ -86,10 +103,7 @@ router.post("/login-google", async (req, res) => {
           isEmailVerified: true,
           customerProfile: { create: { name: payload.name ?? null, photoUrl: payload.picture ?? null } },
           oauthAccounts: {
-            create: {
-              provider: "google",
-              providerUserId: payload.sub!
-            }
+            create: { provider: "google", providerUserId: sub! }
           }
         }
       });
@@ -100,10 +114,12 @@ router.post("/login-google", async (req, res) => {
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() }});
     await logAudit(user.id, "CUSTOMER_LOGIN_GOOGLE", req);
 
-    res.json(ok({ user: { id: user.id, role: user.role, email: user.email }}));
-  } catch (e) {
-    res.status(401).json(fail("Google token invalid"));
+    res.json(ok({ user: { id: user.id, role: user.role, email: user.email }, meta: { iss, aud } }));
+  } catch (e: any) {
+    // Tambahin sedikit detail biar ketahuan kenapa
+    res.status(401).json(fail(`Google token invalid: ${e?.message || "unknown"}`));
   }
 });
+
 
 export default router;
