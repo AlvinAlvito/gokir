@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 
 type Role = "CUSTOMER" | "STORE" | "DRIVER" | "ADMIN" | "SUPERADMIN";
 type User = {
+  photoUrl: any;
   id: string;
   role: Role;
   email?: string | null;
