@@ -1,72 +1,74 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import RequireAuth from "./components/routing/RequireAuth";
+
+import AppLayout from "./layout/AppLayout";
+import { ScrollToTop } from "./components/common/ScrollToTop";
+
+// Auth pages
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import SignUpOption from "./pages/AuthPages/SignUpOption";
 import SignUpStore from "./pages/AuthPages/SignUpStore";
 import SignUpDriver from "./pages/AuthPages/SignUpDriver";
+
+// Dashboards (buat halaman placeholder kalau belum ada)
 import NotFound from "./pages/OtherPage/NotFound";
-import UserProfiles from "./pages/UserProfiles";
-import Videos from "./pages/UiElements/Videos";
-import Images from "./pages/UiElements/Images";
-import Alerts from "./pages/UiElements/Alerts";
-import Badges from "./pages/UiElements/Badges";
-import Avatars from "./pages/UiElements/Avatars";
-import Buttons from "./pages/UiElements/Buttons";
-import LineChart from "./pages/Charts/LineChart";
-import BarChart from "./pages/Charts/BarChart";
-import Calendar from "./pages/Calendar";
-import BasicTables from "./pages/Tables/BasicTables";
-import FormElements from "./pages/Forms/FormElements";
-import Blank from "./pages/Blank";
-import AppLayout from "./layout/AppLayout";
-import { ScrollToTop } from "./components/common/ScrollToTop";
-import Home from "./pages/Dashboard/Home";
+
+// OPTIONAL: placeholder per-role
+const CustomerDashboard = () => <div>Customer Dashboard</div>;
+const StoreDashboard = () => <div>Store Dashboard</div>;
+const DriverDashboard = () => <div>Driver Dashboard</div>;
+const AdminDashboard = () => <div>Admin Dashboard</div>;
+
+// === Inline redirect component (Opsi A) ===
+function RedirectToRoleDashboard() {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/signin" replace />;
+  const path =
+    user.role === "CUSTOMER" ? "/dashboard/customer" :
+    user.role === "STORE" ? "/dashboard/store" :
+    user.role === "DRIVER" ? "/dashboard/driver" :
+    "/dashboard/admin";
+  return <Navigate to={path} replace />;
+}
 
 export default function App() {
   return (
-    <>
+    <AuthProvider>
       <Router>
         <ScrollToTop />
         <Routes>
-          {/* Dashboard Layout */}
-          <Route element={<AppLayout />}>
-            <Route index path="/" element={<Home />} />
-
-            {/* Others Page */}
-            <Route path="/profile" element={<UserProfiles />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/blank" element={<Blank />} />
-
-            {/* Forms */}
-            <Route path="/form-elements" element={<FormElements />} />
-
-            {/* Tables */}
-            <Route path="/basic-tables" element={<BasicTables />} />
-
-            {/* Ui Elements */}
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/avatars" element={<Avatars />} />
-            <Route path="/badge" element={<Badges />} />
-            <Route path="/buttons" element={<Buttons />} />
-            <Route path="/images" element={<Images />} />
-            <Route path="/videos" element={<Videos />} />
-
-            {/* Charts */}
-            <Route path="/line-chart" element={<LineChart />} />
-            <Route path="/bar-chart" element={<BarChart />} />
-          </Route>
-
-          {/* Auth Layout */}
+          {/* Public auth routes */}
           <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
           <Route path="/signup-option" element={<SignUpOption />} />
+          <Route path="/signup" element={<SignUp />} />
           <Route path="/signup-store" element={<SignUpStore />} />
           <Route path="/signup-driver" element={<SignUpDriver />} />
 
-          {/* Fallback Route */}
+          {/* Protected app layout */}
+          <Route element={<RequireAuth />}>
+            <Route element={<AppLayout />}>
+              {/* Root langsung redirect ke dashboard sesuai role */}
+              <Route index element={<RedirectToRoleDashboard />} />
+
+              {/* Role dashboards */}
+              <Route path="/dashboard/customer" element={<CustomerDashboard />} />
+              <Route path="/dashboard/store" element={<StoreDashboard />} />
+              <Route path="/dashboard/driver" element={<DriverDashboard />} />
+              <Route path="/dashboard/admin" element={<AdminDashboard />} />
+
+              {/* Contoh leftover routes (tetap protected) */}
+              <Route path="/profile" element={<div>Profile</div>} />
+              <Route path="/calendar" element={<div>Calendar</div>} />
+              <Route path="/blank" element={<div>Blank</div>} />
+            </Route>
+          </Route>
+
+          {/* Fallback */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
-    </>
+    </AuthProvider>
   );
 }

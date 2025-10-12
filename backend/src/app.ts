@@ -11,8 +11,10 @@ import adminAuth from "@/routes/auth/admin";
 import universalAuth from "@/routes/auth/login";
 import fs from "fs";
 import path from "path";
+import sessionRoute from "@/routes/auth/session";
 
 const app = express();
+app.set("etag", false);
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || "http://localhost:5173",
@@ -45,6 +47,13 @@ app.use("/auth/driver", driverAuth);
 app.use("/admin/drivers", adminDrivers);
 app.use("/auth/admin", adminAuth);
 app.use("/auth", universalAuth);
+
+app.use(cookieParser());
+app.use(express.json());
+
+// ... route auth lainnya ...
+
+app.use("/auth", sessionRoute);
 // 404 JSON fallback
 app.use((req, res) => {
   res.status(404).json({ ok: false, error: { message: `Route ${req.method} ${req.path} not found` } });

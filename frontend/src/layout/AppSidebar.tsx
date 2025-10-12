@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-
-// Assume these icons are imported from an icon library
 import {
   CalenderIcon,
   ChevronDownIcon,
@@ -14,6 +12,9 @@ import {
   UserCircleIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
+import { useAuth } from "../context/AuthContext";
+
+type Role = "CUSTOMER" | "STORE" | "DRIVER" | "ADMIN" | "SUPERADMIN";
 
 type NavItem = {
   name: string;
@@ -22,69 +23,152 @@ type NavItem = {
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
 };
 
-const navItems: NavItem[] = [
-  {
-    icon: <GridIcon />,
-    name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/", pro: false }],
-  },
-  {
-    icon: <CalenderIcon />,
-    name: "Calendar",
-    path: "/calendar",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "User Profile",
-    path: "/profile",
-  },
-  {
-    name: "Forms",
-    icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-  },
-  {
-    name: "Tables",
-    icon: <TableIcon />,
-    subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
-  },
-  {
-    name: "Pages",
-    icon: <PageIcon />,
-    subItems: [
-      { name: "404 Error", path: "/error-404", pro: false },
-    ],
-  },
-];
+// ====== MENU DEFINITIONS BERDASARKAN ROLE ======
+const NAV_BY_ROLE: Record<Role, NavItem[]> = {
+  CUSTOMER: [
+    {
+      icon: <GridIcon />,
+      name: "Dashboard",
+      subItems: [{ name: "Beranda", path: "/dashboard/customer" }],
+    },
+    { icon: <ListIcon />, name: "Pesan Makanan", path: "/orders/food" },
+    { icon: <ListIcon />, name: "Antar Penumpang", path: "/orders/ride" },
+    {
+      icon: <TableIcon />,
+      name: "Riwayat",
+      subItems: [{ name: "Semua Riwayat", path: "/history" }],
+    },
+    { icon: <UserCircleIcon />, name: "Profil", path: "/profile" },
+  ],
+  STORE: [
+    {
+      icon: <GridIcon />,
+      name: "Dashboard",
+      subItems: [{ name: "Beranda", path: "/dashboard/store" }],
+    },
+    {
+      icon: <ListIcon />,
+      name: "Menu Toko",
+      subItems: [
+        { name: "Daftar Menu", path: "/store/menu" },
+        { name: "Tambah Menu", path: "/store/menu/new" },
+      ],
+    },
+    {
+      icon: <TableIcon />,
+      name: "Pesanan",
+      subItems: [
+        { name: "Pesanan Masuk", path: "/store/orders" },
+        { name: "Riwayat Pesanan", path: "/store/orders/history" },
+      ],
+    },
+    { icon: <CalenderIcon />, name: "Jam Operasional", path: "/store/schedule" },
+    { icon: <UserCircleIcon />, name: "Profil Toko", path: "/store/profile" },
+  ],
+  DRIVER: [
+    {
+      icon: <GridIcon />,
+      name: "Dashboard",
+      subItems: [{ name: "Beranda", path: "/dashboard/driver" }],
+    },
+    {
+      icon: <ListIcon />,
+      name: "Tugas",
+      subItems: [
+        { name: "Aktif", path: "/driver/active" },
+        { name: "Riwayat", path: "/driver/history" },
+      ],
+    },
+    {
+      icon: <PageIcon />,
+      name: "Status & Dokumen",
+      path: "/driver/documents",
+    },
+    { icon: <UserCircleIcon />, name: "Profil", path: "/profile" },
+  ],
+  ADMIN: [
+    {
+      icon: <GridIcon />,
+      name: "Dashboard",
+      subItems: [{ name: "Beranda", path: "/dashboard/admin" }],
+    },
+    {
+      icon: <ListIcon />,
+      name: "Verifikasi",
+      subItems: [{ name: "Driver", path: "/admin/drivers" }],
+    },
+    {
+      icon: <TableIcon />,
+      name: "Manajemen",
+      subItems: [
+        { name: "Daftar Toko", path: "/admin/stores" },
+        { name: "Pengguna", path: "/admin/users" },
+      ],
+    },
+  ],
+  SUPERADMIN: [
+    {
+      icon: <GridIcon />,
+      name: "Dashboard",
+      subItems: [{ name: "Beranda", path: "/dashboard/admin" }],
+    },
+    {
+      icon: <ListIcon />,
+      name: "Verifikasi",
+      subItems: [{ name: "Driver", path: "/admin/drivers" }],
+    },
+    {
+      icon: <TableIcon />,
+      name: "Manajemen",
+      subItems: [
+        { name: "Daftar Toko", path: "/admin/stores" },
+        { name: "Pengguna", path: "/admin/users" },
+      ],
+    },
+    { icon: <PlugInIcon />, name: "System Config", path: "/admin/system" },
+  ],
+};
 
-const othersItems: NavItem[] = [
-
+// Section Others saat BELUM login (auth links)
+const AUTH_SECTION: NavItem[] = [
   {
     icon: <PlugInIcon />,
     name: "Authentication",
     subItems: [
-      { name: "Sign In", path: "/signin", pro: false },
-      { name: "Sign Up", path: "/signup", pro: false },
-      { name: "Sign Up Store", path: "/signup-store", pro: false },
-      { name: "Sign Up Driver", path: "/signup-driver", pro: false },
+      { name: "Sign In", path: "/signin" },
+      { name: "Sign Up Customer", path: "/signup" },
+      { name: "Sign Up Store", path: "/signup-store" },
+      { name: "Sign Up Driver", path: "/signup-driver" },
     ],
   },
 ];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const { user } = useAuth();
   const location = useLocation();
+
+  // ==== DYNAMIC ITEMS (GANTI SISI DATA SAJA, FUNGSI RENDER TETAP) ====
+  const navItems = useMemo<NavItem[]>(() => {
+    if (!user) return []; // belum login → main kosong
+    return NAV_BY_ROLE[user.role] ?? [];
+  }, [user]);
+
+  const othersItems = useMemo<NavItem[]>(() => {
+    if (!user) return AUTH_SECTION; // belum login tampilkan Authentication
+    return []; // sudah login, kosongkan Others (atau isi nanti kalau perlu)
+  }, [user]);
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
     index: number;
   } | null>(null);
+
   const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
     {}
   );
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // const isActive = (path: string) => location.pathname === path;
   const isActive = useCallback(
     (path: string) => location.pathname === path,
     [location.pathname]
@@ -92,34 +176,30 @@ const AppSidebar: React.FC = () => {
 
   useEffect(() => {
     let submenuMatched = false;
-    ["main", "others"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : othersItems;
+    ([
+      { t: "main" as const, items: navItems },
+      { t: "others" as const, items: othersItems },
+    ]).forEach(({ t, items }) => {
       items.forEach((nav, index) => {
         if (nav.subItems) {
-          nav.subItems.forEach((subItem) => {
-            if (isActive(subItem.path)) {
-              setOpenSubmenu({
-                type: menuType as "main" | "others",
-                index,
-              });
+          nav.subItems.forEach((sub) => {
+            if (sub.path && isActive(sub.path)) {
+              setOpenSubmenu({ type: t, index });
               submenuMatched = true;
             }
           });
         }
       });
     });
-
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
-  }, [location, isActive]);
+    if (!submenuMatched) setOpenSubmenu(null);
+  }, [location, isActive, navItems, othersItems]);
 
   useEffect(() => {
     if (openSubmenu !== null) {
       const key = `${openSubmenu.type}-${openSubmenu.index}`;
       if (subMenuRefs.current[key]) {
-        setSubMenuHeight((prevHeights) => ({
-          ...prevHeights,
+        setSubMenuHeight((prev) => ({
+          ...prev,
           [key]: subMenuRefs.current[key]?.scrollHeight || 0,
         }));
       }
@@ -127,14 +207,8 @@ const AppSidebar: React.FC = () => {
   }, [openSubmenu]);
 
   const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
-    setOpenSubmenu((prevOpenSubmenu) => {
-      if (
-        prevOpenSubmenu &&
-        prevOpenSubmenu.type === menuType &&
-        prevOpenSubmenu.index === index
-      ) {
-        return null;
-      }
+    setOpenSubmenu((prev) => {
+      if (prev && prev.type === menuType && prev.index === index) return null;
       return { type: menuType, index };
     });
   };
@@ -142,7 +216,7 @@ const AppSidebar: React.FC = () => {
   const renderMenuItems = (items: NavItem[], menuType: "main" | "others") => (
     <ul className="flex flex-col gap-4">
       {items.map((nav, index) => (
-        <li key={nav.name}>
+        <li key={`${menuType}-${nav.name}`}>
           {nav.subItems ? (
             <button
               onClick={() => handleSubmenuToggle(index, menuType)}
@@ -217,7 +291,7 @@ const AppSidebar: React.FC = () => {
             >
               <ul className="mt-2 space-y-1 ml-9">
                 {nav.subItems.map((subItem) => (
-                  <li key={subItem.name}>
+                  <li key={`${menuType}-${nav.name}-${subItem.name}`}>
                     <Link
                       to={subItem.path}
                       className={`menu-dropdown-item ${
@@ -310,6 +384,7 @@ const AppSidebar: React.FC = () => {
           )}
         </Link>
       </div>
+
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">
@@ -329,7 +404,8 @@ const AppSidebar: React.FC = () => {
               </h2>
               {renderMenuItems(navItems, "main")}
             </div>
-            <div className="">
+
+            <div>
               <h2
                 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
                   !isExpanded && !isHovered
@@ -337,11 +413,7 @@ const AppSidebar: React.FC = () => {
                     : "justify-start"
                 }`}
               >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
-                ) : (
-                  <HorizontaLDots />
-                )}
+                {isExpanded || isHovered || isMobileOpen ? "Others" : <HorizontaLDots />}
               </h2>
               {renderMenuItems(othersItems, "others")}
             </div>

@@ -5,6 +5,7 @@ import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
 import Button from "../ui/button/Button";
+import { useAuth } from "../../context/AuthContext"; // ⬅️ tambahkan
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
@@ -22,8 +23,9 @@ export default function SignInForm() {
 
   const googleBtnRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
+  const { refresh } = useAuth(); // ⬅️ ambil refresh dari AuthContext
 
-  // Google Sign-In → default ke CUSTOMER (sesuai implementasi sebelumnya)
+  // Google Sign-In → default ke CUSTOMER
   useEffect(() => {
     if (!window.google || !googleBtnRef.current || !GOOGLE_CLIENT_ID) return;
 
@@ -41,7 +43,12 @@ export default function SignInForm() {
         });
         const json = await r.json();
         if (!r.ok || !json.ok) throw new Error(json?.error?.message || "Google sign-in failed");
-        navigate("/dashboard/customer");
+
+        // ⬇️ sinkronkan sesi ke AuthContext
+        await refresh();
+
+        // default: customer dashboard
+        navigate("/dashboard/customer", { replace: true });
       } catch (e: any) {
         setMsg(e.message || "Google sign-in error");
       } finally {
@@ -64,7 +71,7 @@ export default function SignInForm() {
       logo_alignment: "left",
       width: 360,
     });
-  }, []);
+  }, [refresh]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,28 +88,35 @@ export default function SignInForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ identifier: identifier.trim(), password }),
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          password,
+          keepLogin, // opsional, kalau backend support remember me
+        }),
       });
       const json = await r.json();
       if (!r.ok || !json.ok) throw new Error(json?.error?.message || "Login gagal");
 
+      // ⬇️ penting: update AuthContext dari /auth/session
+      await refresh();
+
       const role = json.data.user.role as "CUSTOMER" | "STORE" | "DRIVER" | "ADMIN" | "SUPERADMIN";
       switch (role) {
         case "CUSTOMER":
-          navigate("/dashboard/customer");
+          navigate("/dashboard/customer", { replace: true });
           break;
         case "STORE":
-          navigate("/dashboard/store");
+          navigate("/dashboard/store", { replace: true });
           break;
         case "DRIVER":
-          navigate("/dashboard/driver");
+          navigate("/dashboard/driver", { replace: true });
           break;
         case "ADMIN":
         case "SUPERADMIN":
-          navigate("/dashboard/admin");
+          navigate("/dashboard/admin", { replace: true });
           break;
         default:
-          navigate("/"); // fallback
+          navigate("/", { replace: true });
       }
     } catch (e: any) {
       setMsg(e.message || "Terjadi kesalahan");
