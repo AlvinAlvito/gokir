@@ -63,10 +63,12 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <UserCircleIcon />, name: "Profil Toko", path: "/store/profile" },
   ],
   DRIVER: [
+    { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/driver" },
+    { icon: <UserCircleIcon />, name: "Profil", path: "/profile/driver" },
     {
-      icon: <GridIcon />,
-      name: "Dashboard",
-      subItems: [{ name: "Beranda", path: "/dashboard/driver" }],
+      icon: <PageIcon />,
+      name: "Status & Dokumen",
+      path: "/driver/documents",
     },
     {
       icon: <ListIcon />,
@@ -76,12 +78,8 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
         { name: "Riwayat", path: "/driver/history" },
       ],
     },
-    {
-      icon: <PageIcon />,
-      name: "Status & Dokumen",
-      path: "/driver/documents",
-    },
-    { icon: <UserCircleIcon />, name: "Profil", path: "/profile" },
+    
+    
   ],
   ADMIN: [
     {

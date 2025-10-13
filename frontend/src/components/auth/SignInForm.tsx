@@ -225,7 +225,7 @@ export default function SignInForm() {
                 {msg && <div className="text-sm text-error-500">{msg}</div>}
 
                 <div>
-                  <Button className="w-full" size="sm" disabled={loading}>
+                  <Button type="submit" className="w-full" size="sm" disabled={loading}>
                     {loading ? "Processing..." : "Sign in"}
                   </Button>
                 </div>

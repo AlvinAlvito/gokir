@@ -15,11 +15,7 @@ enum Role {
   SUPERADMIN
 }
 
-enum DriverStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
+
 
 model User {
   id              String  @id @default(cuid())
@@ -90,23 +86,35 @@ model StoreProfile {
   updatedAt DateTime @updatedAt
 }
 
-model DriverProfile {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  name            String
-  nim             String
-  birthPlace      String
-  birthDate       DateTime
-  idCardUrl       String
-  studentCardUrl  String
-  facePhotoUrl    String
-  whatsapp        String?    // 👈 tambahkan ini
-  status          String     @default("PENDING")
-  user            User       @relation(fields: [userId], references: [id])
-  createdAt       DateTime   @default(now())
-
-  User User[] @relation("ReviewedBy")
+enum DriverStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
+
+model DriverProfile {
+  id             String       @id @default(cuid())
+  userId         String       @unique
+  user           User         @relation(fields: [userId], references: [id])
+
+  // buat bertahap => opsional
+  name           String?
+  nim            String?
+  birthPlace     String?
+  birthDate      DateTime?
+  idCardUrl      String?
+  studentCardUrl String?
+  facePhotoUrl   String?
+  whatsapp       String?
+  address        String?      // << ditambahkan
+
+  status         DriverStatus @default(PENDING)
+
+  createdAt      DateTime     @default(now())
+  // reviewedBy rel (opsional, nanti saat admin)
+  User           User[]       @relation("ReviewedBy")
+}
+
 
 model VerificationToken {
   id         String   @id @default(cuid())

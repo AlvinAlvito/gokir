@@ -1,7 +1,8 @@
 import multer from "multer";
 import path from "path";
 import crypto from "crypto";
-
+import fs from "fs";
+  
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     cb(null, path.resolve(process.cwd(), "uploads"));
@@ -28,3 +29,31 @@ export const upload = multer({
     fileSize: 5 * 1024 * 1024 // 5MB per file
   }
 });
+// helper bikin folder
+function ensureDir(dir: string) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+// ===== DRIVER (baru) =====
+const driverStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.resolve(process.cwd(), "uploads", "profile");
+    ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (req: any, file, cb) => {
+    const userId = req.user?.id || "anon";
+    const ext = path.extname(file.originalname || "");
+    const safeExt = ext || ".jpg";
+    cb(null, `profile-driver-${userId}-${Date.now()}${safeExt}`);
+  },
+});
+
+export const uploadDriverProfile = multer({
+  storage: driverStorage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter: (_req, file, cb) => {
+    const ok = /image\/(jpeg|png|webp)/i.test(file.mimetype);
+    if (!ok) return cb(new Error("File harus JPG/PNG/WEBP"));
+    cb(null, true);
+  },
+}).single("photo");

@@ -18,6 +18,7 @@ import sessionRoute from "@/routes/auth/session";
 // Feature routes
 import adminDrivers from "@/routes/admin/drivers";
 import customerProfileRoute from "@/routes/customer/profile";
+import driverProfileRoute from "@/routes/driver/profile";
 
 const app = express();
 
@@ -71,7 +72,7 @@ app.use("/auth", universalAuth);
 // Fitur lain
 app.use("/admin/drivers", adminDrivers);
 app.use("/customer/profile", customerProfileRoute);
-
+app.use("/driver/profile", driverProfileRoute);
 // --- 404 JSON fallback ---
 app.use((req, res) => {
   res
