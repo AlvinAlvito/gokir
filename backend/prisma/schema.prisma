@@ -97,7 +97,7 @@ model DriverProfile {
   userId         String       @unique
   user           User         @relation(fields: [userId], references: [id])
 
-  // buat bertahap => opsional
+  // profil
   name           String?
   nim            String?
   birthPlace     String?
@@ -106,13 +106,15 @@ model DriverProfile {
   studentCardUrl String?
   facePhotoUrl   String?
   whatsapp       String?
-  address        String?      // << ditambahkan
+  address        String?
 
   status         DriverStatus @default(PENDING)
 
+  // reviewer (baru)
+  reviewedById   String?
+  reviewedBy     User?        @relation("ReviewedBy", fields: [reviewedById], references: [id])
+
   createdAt      DateTime     @default(now())
-  // reviewedBy rel (opsional, nanti saat admin)
-  User           User[]       @relation("ReviewedBy")
 }
 
 

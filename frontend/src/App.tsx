@@ -12,6 +12,12 @@ import SignUpOption from "./pages/AuthPages/SignUpOption";
 import SignUpStore from "./pages/AuthPages/SignUpStore";
 import SignUpDriver from "./pages/AuthPages/SignUpDriver";
 
+// Admin
+import AdminDashboard from "./pages/Admin/Dashboard";
+import AdminDriver from "./pages/Admin/Driver";
+import AdminDriverProfil from "./components/admin/ProfilDriver";
+
+
 // Customer
 import CustomerDashboard from "./pages/Customer/Dashboard";
 import CustomerProfil from "./pages/Customer/Profil";
@@ -25,7 +31,6 @@ import NotFound from "./pages/OtherPage/NotFound";
 
 // OPTIONAL: placeholder per-role
 const StoreDashboard = () => <div>Store Dashboard</div>;
-const AdminDashboard = () => <div>Admin Dashboard</div>;
 
 // === Inline redirect component (Opsi A) ===
 function RedirectToRoleDashboard() {
@@ -58,16 +63,21 @@ export default function App() {
               {/* Root langsung redirect ke dashboard sesuai role */}
               <Route index element={<RedirectToRoleDashboard />} />
 
+              {/* Admin */}
+              <Route path="/dashboard/admin" element={<AdminDashboard />} />
+              <Route path="/driver/admin" element={<AdminDriver />} />
+              <Route path="/admin/drivers/:id" element={<AdminDriverProfil />} />
+
               {/* Customer routes */}
               <Route path="/dashboard/customer" element={<CustomerDashboard />} />
               <Route path="/profile/customer" element={<CustomerProfil />} />
 
-               {/* Customer routes */}
+               {/* Driver routes */}
               <Route path="/dashboard/driver" element={<DriverDashboard />} />
               <Route path="/profile/driver" element={<DriverProfil />} />
 
               <Route path="/dashboard/store" element={<StoreDashboard />} />
-              <Route path="/dashboard/admin" element={<AdminDashboard />} />
+             
 
               {/* Contoh leftover routes (tetap protected) */}
               <Route path="/profile" element={<div>Profile</div>} />

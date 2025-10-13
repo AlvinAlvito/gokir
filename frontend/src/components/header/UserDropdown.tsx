@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {  useNavigate } from "react-router";
+import { useNavigate } from "react-router"; // ✅ penting: dom, bukan react-router
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { useAuth } from "../../context/AuthContext";
@@ -9,73 +9,77 @@ const DEFAULT_AVATAR = "/images/user/owner.jpg";
 
 function roleToProfilePath(role?: string) {
   switch (role) {
-    case "CUSTOMER":
-      return "/profile/customer";
-    case "DRIVER":
-      return "/profile/driver";
-    case "STORE":
-      return "/profile/store";
+    case "CUSTOMER": return "/profile/customer";
+    case "DRIVER": return "/profile/driver";
+    case "STORE": return "/profile/store";
     case "ADMIN":
-    case "SUPERADMIN":
-      return "/profile/superadmin";
-    default:
-      return "/profile/customer";
+    case "SUPERADMIN": return "/profile/superadmin";
+    default: return "/profile/customer";
   }
+}
+
+function toAbs(url?: string | null) {
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${API_URL}${url.startsWith("/") ? "" : "/"}${url}`;
 }
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
-  // Ambil user + refresh dari AuthContext (tanpa setUser)
   const { user, refresh } = useAuth();
   const navigate = useNavigate();
 
-  const toggleDropdown = () => setIsOpen((v) => !v);
+  const toggleDropdown = () => setIsOpen(v => !v);
   const closeDropdown = () => setIsOpen(false);
 
-  // Ambil foto profil dari endpoint profil (khusus CUSTOMER sekarang)
+  // Ambil foto sesuai role
   useEffect(() => {
     let abort = false;
     (async () => {
       try {
         if (!user) return;
+
+        // default: kosong -> fallback ke DEFAULT_AVATAR
+        let relativePhoto: string | null = null;
+
         if (user.role === "CUSTOMER") {
-          const r = await fetch(`${API_URL}/customer/profile/me`, {
-            credentials: "include",
-          });
+          const r = await fetch(`${API_URL}/customer/profile/me`, { credentials: "include" });
           const j = await r.json();
-          if (!abort && r.ok && j.ok) {
-            const p = j.data?.profile;
-            if (p?.photoUrl) setPhotoUrl(p.photoUrl as string);
-          }
+          if (abort) return;
+          if (r.ok && j?.ok) relativePhoto = j?.data?.profile?.photoUrl ?? null;
+
+        } else if (user.role === "DRIVER") {
+          const r = await fetch(`${API_URL}/driver/profile/me`, { credentials: "include" });
+          const j = await r.json();
+          if (abort) return;
+          if (r.ok && j?.ok) relativePhoto = j?.data?.profile?.facePhotoUrl ?? null;
+
+        } else if (user.role === "STORE") {
+          const r = await fetch(`${API_URL}/store/profile/me`, { credentials: "include" });
+          const j = await r.json();
+          if (abort) return;
+          if (r.ok && j?.ok) relativePhoto = j?.data?.profile?.photoUrl ?? null;
+
         } else {
-          // role lain: pakai default dulu
-          setPhotoUrl(null);
+          // ADMIN / SUPERADMIN -> belum ada endpoint foto khusus
+          relativePhoto = null;
         }
+
+        setPhotoUrl(relativePhoto ? toAbs(relativePhoto) : null);
       } catch {
-        // ignore
+        if (!abort) setPhotoUrl(null);
       }
     })();
-    return () => {
-      abort = true;
-    };
+    return () => { abort = true; };
   }, [user]);
 
-  const avatarSrc = useMemo(() => {
-    if (!photoUrl) return DEFAULT_AVATAR;
-    if (/^https?:\/\//i.test(photoUrl)) return photoUrl;
-    return `${API_URL}${photoUrl.startsWith("/") ? "" : "/"}${photoUrl}`;
-  }, [photoUrl]);
+  const avatarSrc = useMemo(() => photoUrl || DEFAULT_AVATAR, [photoUrl]);
 
-  // Karena tipe User kamu tidak punya name/email eksplisit, ambil yang ada saja
   const displayName =
-    (user as any)?.name ||
-    user?.username ||
-    user?.email ||
-    "User";
-  const displayEmail =
-    user?.email || user?.username || "";
+    (user as any)?.name || user?.username || user?.email || "User";
+  const displayEmail = user?.email || user?.username || "";
 
   const profilePath = roleToProfilePath(user?.role);
 
@@ -85,18 +89,13 @@ export default function UserDropdown() {
         method: "POST",
         credentials: "include",
       });
-    } catch {
-      // ignore
-    } finally {
-      // segarkan state auth dan alihkan ke signin
-      try {
-        await refresh?.();
-      } catch {}
-      navigate("/signin", { replace: true });
-    }
+    } catch {}
+    try { await refresh?.(); } catch {}
+    navigate("/signin", { replace: true });
   };
 
   return (
+    
     <div className="relative">
       <button
         onClick={toggleDropdown}

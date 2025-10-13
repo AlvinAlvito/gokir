@@ -5,7 +5,7 @@ import morgan from "morgan";
 import fs from "fs";
 import path from "path";
 
-import { authMiddleware } from "@/lib/auth";
+import { authMiddleware, requireAuth /*, requireRole */ } from "@/lib/auth";
 
 // Auth routes
 import customerAuth from "@/routes/auth/customer";
@@ -18,7 +18,7 @@ import sessionRoute from "@/routes/auth/session";
 // Feature routes
 import adminDrivers from "@/routes/admin/drivers";
 import customerProfileRoute from "@/routes/customer/profile";
-import driverProfileRoute from "@/routes/driver/profile";
+import driverProfileRoute from "@/routes/driver/profile"; // ✅ BENAR: pakai router driver profile
 
 const app = express();
 
@@ -38,7 +38,7 @@ app.use(cookieParser());
 app.use(express.json({ limit: "5mb" }));
 app.use(morgan("dev"));
 
-// (Opsional) auth middleware untuk attach req.user jika ada sesi
+// Attach req.user bila ada sesi
 app.use(authMiddleware);
 
 // Root ping
@@ -46,14 +46,14 @@ app.get("/", (_req, res) => {
   res.send("Gokir backend is running. Try GET /health");
 });
 
-// --- Static uploads (satu sumber kebenaran) ---
+// Static uploads
 const uploadDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 app.use("/uploads", express.static(uploadDir));
 
-// --- Health ---
+// Health
 app.get("/health", (_req, res) => res.json({ ok: true, service: "gokir-backend" }));
 
 // --- Routes ---
@@ -71,9 +71,14 @@ app.use("/auth", universalAuth);
 
 // Fitur lain
 app.use("/admin/drivers", adminDrivers);
+
+// Driver profile: cukup butuh user login (ROLE bebas).
+// Jika mau limit khusus DRIVER, gunakan: requireRole(["DRIVER"])
+app.use("/driver/profile", requireAuth, driverProfileRoute); // ✅
+
 app.use("/customer/profile", customerProfileRoute);
-app.use("/driver/profile", driverProfileRoute);
-// --- 404 JSON fallback ---
+
+// 404 JSON fallback
 app.use((req, res) => {
   res
     .status(404)
