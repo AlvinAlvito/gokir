@@ -1,0 +1,154 @@
+// src/routes/store/profile.ts
+import { Router } from "express";
+import { prisma } from "@/lib/prisma";
+import { upload } from "@/middleware/upload";
+import { ok, fail } from "@/utils/http";
+
+const router = Router();
+
+// GET /store/profile/me
+router.get("/me", async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json(fail("Unauthorized"));
+
+    let profile = await prisma.storeProfile.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        userId: true,
+        storeName: true,
+        description: true,
+        categories: true,
+        photoUrl: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!profile) {
+      profile = await prisma.storeProfile.create({
+        data: { userId },
+        select: {
+          id: true,
+          userId: true,
+          storeName: true,
+          description: true,
+          categories: true,
+          photoUrl: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+    }
+
+    return res.json(ok({ profile }));
+  } catch (e: any) {
+    return res.status(500).json(fail(e.message || "Server error"));
+  }
+});
+
+// PATCH /store/profile
+router.patch("/", async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json(fail("Unauthorized"));
+
+    let { storeName, description, categories, photoUrl } = req.body as {
+      storeName?: string | null;
+      description?: string | null;
+      categories?: string | string[] | null;
+      photoUrl?: string | null;
+    };
+
+    if (Array.isArray(categories)) {
+      categories = categories.map(s => `${s}`.trim()).filter(Boolean).join(",");
+    }
+
+    const profile = await prisma.storeProfile.upsert({
+      where: { userId },
+      update: {
+        ...(storeName !== undefined ? { storeName } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(categories !== undefined ? { categories } : {}),
+        ...(photoUrl !== undefined ? { photoUrl } : {}),
+      },
+      create: {
+        userId,
+        storeName: storeName ?? undefined,
+        description: description ?? undefined,
+        categories: (categories as string | null) ?? undefined,
+        photoUrl: photoUrl ?? undefined,
+      },
+      select: {
+        id: true,
+        userId: true,
+        storeName: true,
+        description: true,
+        categories: true,
+        photoUrl: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return res.json(ok({ profile }));
+  } catch (e: any) {
+    return res.status(500).json(fail(e.message || "Server error"));
+  }
+});
+
+// POST /store/profile/photo
+router.post("/photo", (req: any, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json(fail("Unauthorized"));
+
+  // ✅ panggil method .single("photo") supaya menjadi middleware function
+  upload.single("photo")(req, res, async (err: any) => {
+    if (err) return res.status(400).json(fail(err.message || "Upload failed"));
+    if (!req.file) return res.status(400).json(fail("No file uploaded"));
+
+    const relative = `/uploads/${req.file.filename}`;
+
+    try {
+      const profile = await prisma.storeProfile.upsert({
+        where: { userId },
+        update: { photoUrl: relative },
+        create: { userId, photoUrl: relative },
+        select: {
+          id: true,
+          userId: true,
+          storeName: true,
+          description: true,
+          categories: true,
+          photoUrl: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      return res.json(ok({ photoUrl: relative, profile }));
+    } catch (e: any) {
+      return res.status(500).json(fail(e.message || "DB error"));
+    }
+  });
+});
+
+// DELETE /store/profile/photo
+router.delete("/photo", async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json(fail("Unauthorized"));
+
+    await prisma.storeProfile.update({
+      where: { userId },
+      data: { photoUrl: null },
+    });
+
+    return res.json(ok(true));
+  } catch (e: any) {
+    return res.status(500).json(fail(e.message || "Server error"));
+  }
+});
+
+export default router;

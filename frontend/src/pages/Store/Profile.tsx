@@ -1,9 +1,9 @@
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
-import Profil from "../../components/customer/Profil";
+import Profil from "../../components/store/Profil";
 
 
 
-export default function CustomerProfile() {
+export default function Profile() {
   return (
     <>
       <PageBreadcrumb pageTitle="Profile" />

@@ -80,8 +80,6 @@ const onView = (id: string) => navigate(`/admin/drivers/${id}`);
     return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
   };
 
-  const statusColor = (s: DriverStatus) =>
-    s === "APPROVED" ? "success" : s === "REJECTED" ? "error" : "warning";
 
 
 

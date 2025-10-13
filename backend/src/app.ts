@@ -18,7 +18,8 @@ import sessionRoute from "@/routes/auth/session";
 // Feature routes
 import adminDrivers from "@/routes/admin/drivers";
 import customerProfileRoute from "@/routes/customer/profile";
-import driverProfileRoute from "@/routes/driver/profile"; // ✅ BENAR: pakai router driver profile
+import driverProfileRoute from "@/routes/driver/profile"; 
+import storeProfileRoute from "@/routes/store/profile";
 
 const app = express();
 
@@ -72,9 +73,8 @@ app.use("/auth", universalAuth);
 // Fitur lain
 app.use("/admin/drivers", adminDrivers);
 
-// Driver profile: cukup butuh user login (ROLE bebas).
-// Jika mau limit khusus DRIVER, gunakan: requireRole(["DRIVER"])
-app.use("/driver/profile", requireAuth, driverProfileRoute); // ✅
+app.use("/store/profile", requireAuth, storeProfileRoute);
+app.use("/driver/profile", requireAuth, driverProfileRoute);
 
 app.use("/customer/profile", customerProfileRoute);
 

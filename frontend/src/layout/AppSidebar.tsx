@@ -38,29 +38,12 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
 
   ],
   STORE: [
-    {
-      icon: <GridIcon />,
-      name: "Dashboard",
-      subItems: [{ name: "Beranda", path: "/dashboard/store" }],
-    },
-    {
-      icon: <ListIcon />,
-      name: "Menu Toko",
-      subItems: [
-        { name: "Daftar Menu", path: "/store/menu" },
-        { name: "Tambah Menu", path: "/store/menu/new" },
-      ],
-    },
-    {
-      icon: <TableIcon />,
-      name: "Pesanan",
-      subItems: [
-        { name: "Pesanan Masuk", path: "/store/orders" },
-        { name: "Riwayat Pesanan", path: "/store/orders/history" },
-      ],
-    },
-    { icon: <CalenderIcon />, name: "Jam Operasional", path: "/store/schedule" },
-    { icon: <UserCircleIcon />, name: "Profil Toko", path: "/store/profile" },
+     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/store" },
+     { icon: <UserCircleIcon />, name: "Profil Toko", path: "/profile/store" },
+    { icon: <ListIcon />, name: "Menu", path: "/menu/store" },
+    { icon: <TableIcon />, name: "Pesanan", path: "/pesanan/store" },
+     { icon: <TableIcon />, name: "Riwayat", path: "/riwayat/store" },
+    { icon: <CalenderIcon />, name: "Jam Operasional", path: "s/chedule/store" },
   ],
   DRIVER: [
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/driver" },

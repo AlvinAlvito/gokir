@@ -22,15 +22,16 @@ import AdminDriverProfil from "./components/admin/ProfilDriver";
 import CustomerDashboard from "./pages/Customer/Dashboard";
 import CustomerProfil from "./pages/Customer/Profil";
 
+// Store
+import StoreProfil from "./pages/Store/Profile";
+import StoreDashboard from "./pages/Store/Dashboard";
+
 // Driver
 import DriverDashboard from "./pages/Driver/Dashboard";
 import DriverProfil from "./pages/Driver/Profile";
 
 // Dashboards (buat halaman placeholder kalau belum ada)
 import NotFound from "./pages/OtherPage/NotFound";
-
-// OPTIONAL: placeholder per-role
-const StoreDashboard = () => <div>Store Dashboard</div>;
 
 // === Inline redirect component (Opsi A) ===
 function RedirectToRoleDashboard() {
@@ -71,6 +72,10 @@ export default function App() {
               {/* Customer routes */}
               <Route path="/dashboard/customer" element={<CustomerDashboard />} />
               <Route path="/profile/customer" element={<CustomerProfil />} />
+
+              {/* Store routes */}
+              <Route path="/dashboard/store" element={<StoreDashboard />} />
+              <Route path="/profile/store" element={<StoreProfil />} />
 
                {/* Driver routes */}
               <Route path="/dashboard/driver" element={<DriverDashboard />} />

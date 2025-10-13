@@ -142,30 +142,12 @@ export default function SignUpFormStore() {
         <div>
           <div className="flex items-center justify-start gap-3 mb-4">
             <h1 className="font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Daftar Store
+              Daftarkan Toko Anda
             </h1>
           </div>
 
           <div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5">
-              {/* Google Sign-In Button container */}
-              <div
-                ref={googleBtnRef}
-                className="sm:col-span-2 inline-flex items-center justify-center py-1"
-                aria-label="Sign in with Google"
-              />
-            </div>
 
-            <div className="relative py-3 sm:py-5">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200 dark:border-gray-800"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="p-2 text-gray-400 bg-white dark:bg-gray-900 sm:px-5 sm:py-2">
-                  atau daftar dengan email
-                </span>
-              </div>
-            </div>
 
             <form onSubmit={onSubmitRegister}>
               <div className="space-y-5">
@@ -186,7 +168,7 @@ export default function SignUpFormStore() {
 
                 {/* No WhatsApp (opsional, simpan saat lengkapi profil) */}
                 <div>
-                  <Label>No WhatsApp (opsional)</Label>
+                  <Label>No WhatsApp <span className="text-error-500">*</span></Label>
                   <Input
                     type="tel"
                     id="whatsapp"
