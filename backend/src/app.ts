@@ -18,10 +18,12 @@ import sessionRoute from "@/routes/auth/session";
 // Feature routes
 import adminDrivers from "@/routes/admin/drivers";
 import adminAnnouncements from "@/routes/admin/announcements";
+import adminTickets from "@/routes/admin/tickets";
 import announcementsRoute from "@/routes/announcements";
 import customerProfileRoute from "@/routes/customer/profile";
 import driverProfileRoute from "@/routes/driver/profile"; 
 import driverAvailabilityRoute from "@/routes/driver/availability";
+import driverTicketsRoute from "@/routes/driver/tickets";
 import storeProfileRoute from "@/routes/store/profile";
 
 const app = express();
@@ -76,11 +78,13 @@ app.use("/auth", universalAuth);
 // Fitur lain
 app.use("/admin/drivers", adminDrivers);
 app.use("/admin/announcements", adminAnnouncements);
+app.use("/admin/tickets", adminTickets);
 app.use("/announcements", announcementsRoute);
 
 app.use("/store/profile", requireAuth, storeProfileRoute);
 app.use("/driver/profile", requireAuth, driverProfileRoute);
 app.use("/driver/availability", requireAuth, driverAvailabilityRoute);
+app.use("/driver/tickets", requireAuth, driverTicketsRoute);
 
 app.use("/customer/profile", customerProfileRoute);
 

@@ -15,8 +15,6 @@ enum Role {
   SUPERADMIN
 }
 
-
-
 model User {
   id              String  @id @default(cuid())
   username        String? @unique
@@ -32,12 +30,15 @@ model User {
   lastLoginUA String?
 
   // relations
-  oauthAccounts   OAuthAccount[]
-  customerProfile CustomerProfile?
-  driverProfile   DriverProfile?
+  oauthAccounts      OAuthAccount[]
+  customerProfile    CustomerProfile?
+  driverProfile      DriverProfile?
   driverAvailability DriverAvailability?
-  storeProfile    StoreProfile?
-  auditLogs       AuditLog[]
+  ticketBalance      TicketBalance?
+  ticketOrders       TicketOrder[]
+  ticketTransactions TicketTransaction[]
+  storeProfile       StoreProfile?
+  auditLogs          AuditLog[]
 
   reviewedDrivers DriverProfile[] @relation("ReviewedBy")
 
@@ -105,10 +106,27 @@ enum DriverRegion {
   WILAYAH_LAINNYA
 }
 
+enum TicketTransactionType {
+  GRANT_INITIAL
+  PURCHASE
+  CONSUME
+  ADJUST
+}
+
+enum TicketOrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  QRIS
+}
+
 model DriverProfile {
-  id             String       @id @default(cuid())
-  userId         String       @unique
-  user           User         @relation(fields: [userId], references: [id])
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
 
   // profil
   name           String?
@@ -121,13 +139,13 @@ model DriverProfile {
   whatsapp       String?
   address        String?
 
-  status         DriverStatus @default(PENDING)
+  status DriverStatus @default(PENDING)
 
   // reviewer (baru)
-  reviewedById   String?
-  reviewedBy     User?        @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedById String?
+  reviewedBy   User?   @relation("ReviewedBy", fields: [reviewedById], references: [id])
 
-  createdAt      DateTime     @default(now())
+  createdAt DateTime @default(now())
 }
 
 model DriverAvailability {
@@ -144,6 +162,44 @@ model DriverAvailability {
   createdAt   DateTime                 @default(now())
 }
 
+model TicketBalance {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model TicketTransaction {
+  id          String                @id @default(cuid())
+  userId      String
+  user        User                  @relation(fields: [userId], references: [id])
+  type        TicketTransactionType
+  amount      Int
+  description String?
+  referenceId String?
+  createdAt   DateTime              @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model TicketOrder {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id])
+  quantity       Int
+  pricePerTicket Int
+  totalAmount    Int
+  status         TicketOrderStatus @default(PENDING)
+  paymentMethod  PaymentMethod     @default(QRIS)
+  paymentPayload String?
+  paidAt         DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([userId, status])
+}
 
 model VerificationToken {
   id         String   @id @default(cuid())
@@ -168,12 +224,12 @@ model AuditLog {
 // Pengumuman / slider info (mading)
 model Announcement {
   id          String   @id @default(cuid())
-  slug        String   @unique          // identitas unik untuk upsert/seed
+  slug        String   @unique // identitas unik untuk upsert/seed
   title       String
   description String
   imageUrl    String
   link        String?
-  forRole     Role?                     // null = untuk semua role
+  forRole     Role? // null = untuk semua role
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())

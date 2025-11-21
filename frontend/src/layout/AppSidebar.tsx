@@ -49,6 +49,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/driver" },
     { icon: <UserCircleIcon />, name: "Profil", path: "/profile/driver" },
     { icon: <PageIcon />, name: "Ketersediaan", path: "/driver/availability" },
+    { icon: <PageIcon />, name: "Tiket", path: "/driver/tickets" },
     {
       icon: <PageIcon />,
       name: "Status & Dokumen",
@@ -85,6 +86,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
       subItems: [{ name: "Driver", path: "/superadmin/driver" }, { name: "Toko", path: "/superadmin/toko" }],
     },
     { icon: <PageIcon />, name: "Announcements", path: "/superadmin/announcements" },
+    { icon: <PageIcon />, name: "Tiket", path: "/superadmin/tickets" },
     { icon: <GridIcon />, name: "Driver", path: "/driver/superadmin" },
     { icon: <GridIcon />, name: "Toko", path: "/toko/superadmin" },
     { icon: <PlugInIcon />, name: "System Config", path: "/admin/system" },

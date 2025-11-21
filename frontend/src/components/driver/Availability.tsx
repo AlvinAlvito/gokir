@@ -43,6 +43,7 @@ export default function DriverAvailability() {
   const [data, setData] = useState<Availability | null>(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [balance, setBalance] = useState(0);
 
   const [status, setStatus] = useState<Status>("INACTIVE");
   const [region, setRegion] = useState<Region>("WILAYAH_LAINNYA");
@@ -71,12 +72,19 @@ export default function DriverAvailability() {
     try {
       setLoading(true);
       setMsg(null);
-      const r = await fetch(`${API_URL}/driver/availability`, { credentials: "include" });
-      const json = await r.json();
-      if (!r.ok || !json?.ok) throw new Error(json?.error?.message || "Gagal memuat data");
-      const av: Availability = json.data.availability;
+      const [rAvail, rTicket] = await Promise.all([
+        fetch(`${API_URL}/driver/availability`, { credentials: "include" }),
+        fetch(`${API_URL}/driver/tickets`, { credentials: "include" }),
+      ]);
+      const jA = await rAvail.json();
+      const jT = await rTicket.json();
+      if (!rAvail.ok || !jA?.ok) throw new Error(jA?.error?.message || "Gagal memuat ketersediaan");
+      if (!rTicket.ok || !jT?.ok) throw new Error(jT?.error?.message || "Gagal memuat saldo tiket");
+      const av: Availability = jA.data.availability;
+      const bal = jT.data.balance ?? 0;
       setData(av);
-      setStatus(av.status);
+      setBalance(bal);
+      setStatus(bal <= 0 ? "INACTIVE" : av.status);
       setRegion(av.region);
       setNote(av.note ?? "");
       setMapsLink(av.locationUrl ?? "");
@@ -89,9 +97,7 @@ export default function DriverAvailability() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   // Tangkap lokasi jika belum ada
   useEffect(() => {
@@ -111,6 +117,10 @@ export default function DriverAvailability() {
 
   const handleSave = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    if (balance <= 0) {
+      setMsg("Saldo tiket habis. Silakan beli tiket untuk mengaktifkan status.");
+      return;
+    }
     try {
       setLoading(true);
       setMsg(null);
@@ -120,7 +130,6 @@ export default function DriverAvailability() {
         note: note.trim() || null,
       };
 
-      // Kirim lokasi hanya jika belum terisi di server
       if (!data?.locationUrl && mapsLink) payload.locationUrl = mapsLink;
       if (data?.latitude == null && lat !== null) payload.latitude = lat;
       if (data?.longitude == null && lng !== null) payload.longitude = lng;
@@ -165,9 +174,9 @@ export default function DriverAvailability() {
               <p className="text-xs text-gray-400">Diperbarui: {new Date(data.updatedAt).toLocaleString()}</p>
             )}
           </div>
-          <Button size="sm" onClick={openModal} className="flex items-center gap-2">
+          <Button size="sm" onClick={openModal} className="flex items-center gap-2" disabled={balance <= 0}>
             <PenBoxIcon size={16} />
-            Update Ketersediaan
+            {balance <= 0 ? "Beli tiket untuk aktif" : "Update Ketersediaan"}
           </Button>
         </div>
 
@@ -178,6 +187,7 @@ export default function DriverAvailability() {
               <div className="text-xl font-medium text-gray-800 dark:text-white/90">
                 {resumoStatus}
               </div>
+              <p className="text-xs text-gray-500">Saldo tiket: {balance}</p>
             </div>
             <div>
               <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">Wilayah</p>
@@ -194,6 +204,11 @@ export default function DriverAvailability() {
           </div>
 
           <div className="space-y-2">
+            {balance <= 0 && (
+              <div className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                Saldo tiket habis. Beli tiket untuk mengaktifkan status.
+              </div>
+            )}
             <p className="mb-1 text-xs leading-normal text-gray-500 dark:text-gray-400">Lokasi Anda di Google Maps</p>
             <div className="relative rounded-xl overflow-hidden border border-gray-300 dark:border-gray-700" style={{ height: 220 }}>
               <iframe
@@ -238,6 +253,7 @@ export default function DriverAvailability() {
                   onChange={(checked) => setStatus(checked ? "ACTIVE" : "INACTIVE")}
                   color="blue"
                   key={`switch-${status}`}
+                  disabled={balance <= 0}
                 />
                 {status === "ACTIVE" ? (
                   <Badge variant="light" color="success">Aktif</Badge>
@@ -274,7 +290,7 @@ export default function DriverAvailability() {
 
             <div className="lg:col-span-2 flex items-center gap-3 justify-end pt-2">
               <Button size="sm" variant="outline" onClick={closeModal} type="button">Tutup</Button>
-              <Button size="sm" type="submit" disabled={loading}>{loading ? "Menyimpan..." : "Simpan"}</Button>
+              <Button size="sm" type="submit" disabled={loading || balance <= 0}>{loading ? "Menyimpan..." : "Simpan"}</Button>
             </div>
           </form>
           {msg && <div className="text-sm text-amber-600 dark:text-amber-400">{msg}</div>}

@@ -20,6 +20,7 @@ import AdminAnnouncements from "./pages/Admin/Announcements";
 
 // Superadmin
 import SuperAdminAnnouncements from "./pages/Admin/Announcements";
+import AdminTickets from "./components/admin/Tickets";
 
 
 // Customer
@@ -34,6 +35,7 @@ import StoreDashboard from "./pages/Store/Dashboard";
 import DriverDashboard from "./pages/Driver/Dashboard";
 import DriverProfil from "./pages/Driver/Profile";
 import DriverAvailability from "./pages/Driver/Availability";
+import DriverTickets from "./pages/Driver/Tickets";
 
 // Dashboards (buat halaman placeholder kalau belum ada)
 import NotFound from "./pages/OtherPage/NotFound";
@@ -86,10 +88,14 @@ export default function App() {
               <Route path="/dashboard/store" element={<StoreDashboard />} />
               <Route path="/profile/store" element={<StoreProfil />} />
 
-               {/* Driver routes */}
+              {/* Driver routes */}
               <Route path="/dashboard/driver" element={<DriverDashboard />} />
               <Route path="/profile/driver" element={<DriverProfil />} />
               <Route path="/driver/availability" element={<DriverAvailability />} />
+              <Route path="/driver/tickets" element={<DriverTickets />} />
+
+              {/* Superadmin */}
+              <Route path="/superadmin/tickets" element={<AdminTickets />} />
 
               <Route path="/dashboard/store" element={<StoreDashboard />} />
              
