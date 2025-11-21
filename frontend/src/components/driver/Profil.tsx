@@ -9,14 +9,26 @@ const API_URL = import.meta.env.VITE_API_URL as string;
 
 type DriverStatus = "PENDING" | "APPROVED" | "REJECTED";
 
+type UserAccount = {
+  id: string;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
+};
+
 type DriverProfile = {
   id: string;
   name: string;
   nim?: string | null;
   whatsapp?: string | null;
   address?: string | null;
-  facePhotoUrl?: string | null; // path foto di server (kalau ada)
-  status: DriverStatus;     // ⬅️ status keaktifan driver
+  birthPlace?: string | null;
+  birthDate?: string | null;
+  idCardUrl?: string | null;
+  studentCardUrl?: string | null;
+  facePhotoUrl?: string | null;
+  status: DriverStatus;
 };
 
 export default function DriverProfilePage() {
@@ -25,13 +37,24 @@ export default function DriverProfilePage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const [user, setUser] = useState<UserAccount | null>(null);
   const [profile, setProfile] = useState<DriverProfile | null>(null);
 
-  // form state (edit)
+  // form state profil
   const [name, setName] = useState("");
   const [nim, setNim] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [address, setAddress] = useState("");
+  const [birthPlace, setBirthPlace] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [idCardUrl, setIdCardUrl] = useState("");
+  const [studentCardUrl, setStudentCardUrl] = useState("");
+
+  // form account
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -47,11 +70,9 @@ export default function DriverProfilePage() {
     return defaultPhoto;
   }, [photoPreview, profile?.facePhotoUrl]);
 
-  // badge status
   const statusBadge = useMemo(() => {
     const s = profile?.status || "PENDING";
-    const base =
-      "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium";
+    const base = "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium";
     if (s === "APPROVED")
       return { text: "Aktif", klass: `${base} bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400` };
     if (s === "REJECTED")
@@ -59,33 +80,42 @@ export default function DriverProfilePage() {
     return { text: "Menunggu Verifikasi", klass: `${base} bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400` };
   }, [profile?.status]);
 
-  // -------- Fetch profile saat mount --------
+  // Fetch akun + profil
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
         setMsg(null);
-        const r = await fetch(`${API_URL}/driver/profile/me`, {
-          credentials: "include",
-        });
+        const ua = await fetch(`${API_URL}/driver/profile/account`, { credentials: "include" });
+        const ju = await ua.json();
+        if (!ua.ok || !ju?.ok) throw new Error(ju?.error?.message || "Gagal memuat akun");
+        const u: UserAccount = ju.data.user;
+        setUser(u);
+        setUsername(u.username ?? "");
+        setEmail(u.email ?? "");
+        setPhone(u.phone ?? "");
+
+        const r = await fetch(`${API_URL}/driver/profile/me`, { credentials: "include" });
         const json = await r.json();
         if (!r.ok || !json?.ok) throw new Error(json?.error?.message || "Gagal memuat profil");
         const p: DriverProfile = json.data.profile;
         setProfile(p);
-        // sync form
         setName(p.name ?? "");
         setNim(p.nim ?? "");
         setWhatsapp(p.whatsapp ?? "");
         setAddress(p.address ?? "");
+        setBirthPlace(p.birthPlace ?? "");
+        setBirthDate(p.birthDate ? p.birthDate.split("T")[0] : "");
+        setIdCardUrl(p.idCardUrl ?? "");
+        setStudentCardUrl(p.studentCardUrl ?? "");
       } catch (e: any) {
-        setMsg(e.message || "Gagal memuat profil");
+        setMsg(e.message || "Gagal memuat data");
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  // Helpers
   function toTitleCase(str?: string | null): string {
     if (!str) return "";
     return str
@@ -94,6 +124,41 @@ export default function DriverProfilePage() {
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
   }
+
+  const handleSaveAccount = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    try {
+      setLoading(true);
+      setMsg(null);
+      const payload: any = {
+        username: username.trim() || undefined,
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+      };
+      if (password.trim()) payload.password = password.trim();
+
+      const r = await fetch(`${API_URL}/driver/profile/account`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await r.json();
+      if (!r.ok || !json?.ok) throw new Error(json?.error?.message || "Simpan akun gagal");
+
+      const u: UserAccount = json.data.user;
+      setUser(u);
+      setUsername(u.username ?? "");
+      setEmail(u.email ?? "");
+      setPhone(u.phone ?? "");
+      setPassword("");
+      setMsg("Akun berhasil disimpan");
+    } catch (e: any) {
+      setMsg(e.message || "Terjadi kesalahan");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onClickEdit = () => {
     setMsg(null);
@@ -112,18 +177,16 @@ export default function DriverProfilePage() {
     }
   };
 
-  // simpan perubahan profile
-  const handleSave = async (e?: React.FormEvent) => {
+  const handleSaveProfile = async (e?: React.FormEvent) => {
     e?.preventDefault();
     try {
       setLoading(true);
       setMsg(null);
 
-      // 1) upload foto kalau ada
       let newfacePhotoUrl: string | undefined = undefined;
       if (photoFile) {
         const fd = new FormData();
-        fd.append("photo", photoFile); // field name di BE
+        fd.append("photo", photoFile);
         const ru = await fetch(`${API_URL}/driver/profile/photo`, {
           method: "POST",
           credentials: "include",
@@ -134,13 +197,16 @@ export default function DriverProfilePage() {
         newfacePhotoUrl = ju?.data?.facePhotoUrl || ju?.data?.profile?.facePhotoUrl;
       }
 
-      // 2) update data teks
-      const payload: Partial<DriverProfile> = {
-        name: name.trim(),
+      const payload = {
+        name: name.trim() || undefined,
         nim: nim.trim() || null,
         whatsapp: whatsapp.trim() || null,
         address: address.trim() || null,
-        ...(newfacePhotoUrl ? { facePhotoUrl: newfacePhotoUrl } : {}),
+        birthPlace: birthPlace.trim() || null,
+        birthDate: birthDate || null,
+        idCardUrl: idCardUrl.trim() || null,
+        studentCardUrl: studentCardUrl.trim() || null,
+        ...(newfacePhotoUrl ? { photoUrl: newfacePhotoUrl } : {}),
       };
 
       const r = await fetch(`${API_URL}/driver/profile`, {
@@ -154,6 +220,7 @@ export default function DriverProfilePage() {
 
       const updated: DriverProfile = json.data.profile;
       setProfile(updated);
+      setBirthDate(updated.birthDate ? updated.birthDate.split("T")[0] : "");
       setPhotoPreview(null);
       setPhotoFile(null);
       closeModal();
@@ -184,170 +251,194 @@ export default function DriverProfilePage() {
     }
   };
 
+  const buildFileUrl = (rel?: string | null) => {
+    if (!rel) return "";
+    if (/^https?:\/\//i.test(rel)) return rel;
+    return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
+  };
+
   return (
     <>
-      {/* Header card */}
-      <div className="p-5 rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-col items-center w-full gap-6 xl:flex-row">
-            {/* Avatar */}
-            <div className="w-20 h-20 overflow-hidden border border-gray-200 rounded-full dark:border-gray-800">
-              <img
-                src={currentPhotoSrc}
-                alt="Driver"
-                className="h-full w-full object-cover object-center"
-              />
-            </div>
-
-            {/* Info */}
-            <div className="order-3 xl:order-2">
-              <div className="flex items-center justify-center xl:justify-start gap-3 mb-1">
-                <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-                  {toTitleCase(profile?.name) || "—"}
-                </h4>
-
-                {/* Badge status */}
-                <span className={statusBadge.klass}>
-                  <span className="inline-block h-2 w-2 rounded-full bg-current opacity-60" />
-                  {statusBadge.text}
-                </span>
+      {/* Card Akun User */}
+      <div className="p-5 rounded-3xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] lg:p-6 mb-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Akun Saya</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Kelola kredensial dasar akun.
+            </p>
+            {user && (
+              <div className="mt-2 inline-flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 px-3 py-1.5 rounded-full">
+                <span>ID: {user.id}</span>
+                <span className="h-3 w-px bg-gray-300 dark:bg-gray-700" />
+                <span>Role: {user.role}</span>
               </div>
-
-              <div className="flex flex-col items-center gap-1 text-center xl:flex-row xl:gap-3 xl:text-left">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  NIM {profile?.nim || "—"}
-                </p>
-                <div className="hidden h-3.5 w-px bg-gray-300 dark:bg-gray-700 xl:block"></div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  WA {profile?.whatsapp || "—"}
-                </p>
-              </div>
-              {profile?.address && (
-                <div className="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center xl:text-left">
-                  {profile.address}
-                </div>
-              )}
-
-              {/* Hint ketika belum aktif */}
-              {profile?.status === "PENDING" && (
-                <div className="mt-3 text-xs text-amber-600 dark:text-amber-400 text-center xl:text-left">
-                  Akun driver kamu sedang ditinjau. Mohon tunggu persetujuan admin/superadmin.
-                </div>
-              )}
-              {profile?.status === "REJECTED" && (
-                <div className="mt-3 text-xs text-red-600 dark:text-red-400 text-center xl:text-left">
-                  Pendaftaran driver kamu ditolak. Periksa kembali dokumen dan ajukan ulang.
-                </div>
-              )}
-            </div>
-
-            {/* spacer kanan */}
-            <div className="flex items-center order-2 gap-2 grow xl:order-3 xl:justify-end" />
-          </div>
-
-          <div className="flex items-center gap-3">
-            {profile?.facePhotoUrl && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleDeletePhoto}
-                disabled={loading}
-              >
-                Hapus Foto
-              </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onClickEdit}
-              disabled={loading}
-            >
+          </div>
+        </div>
+        <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleSaveAccount}>
+          <div className="space-y-2">
+            <Label>Username</Label>
+            <Input value={username} onChange={(e: any) => setUsername(e.target.value)} placeholder="mis. driver01" />
+          </div>
+          <div className="space-y-2">
+            <Label>Email</Label>
+            <Input type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="email@example.com" />
+          </div>
+          <div className="space-y-2">
+            <Label>No. Telepon</Label>
+            <Input value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="08xxxxxxxxxx" />
+          </div>
+          <div className="space-y-2">
+            <Label>Password (kosongkan jika tidak diubah)</Label>
+            <Input type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} placeholder="••••••" />
+          </div>
+          <div className="md:col-span-2 flex items-center gap-3 pt-2">
+            <Button type="submit" disabled={loading}>Simpan Akun</Button>
+            {msg && <span className="text-sm text-amber-600 dark:text-amber-400">{msg}</span>}
+          </div>
+        </form>
+      </div>
+
+      {/* Card Profil Driver */}
+      <div className="p-5 rounded-3xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Profil Driver</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Data lengkap driver dan dokumen.</p>
+          </div>
+          <div className="flex gap-3">
+            <Button size="sm" variant="outline" onClick={handleDeletePhoto} disabled={loading || !profile?.facePhotoUrl}>
+              Hapus
+            </Button>
+            <Button size="sm" onClick={onClickEdit} disabled={loading}>
               Edit
             </Button>
           </div>
         </div>
-      </div>
 
-      {/* Modal Edit */}
-      <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
-        <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
-          <div className="px-2 pr-14">
-            <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
-              Edit Profil Driver
-            </h4>
-            <p className="mb-6 text-sm text-gray-500 dark:text-gray-400 lg:mb-7">
-              Perbarui data profilmu.
-            </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+          <div className="md:col-span-1 flex flex-col items-center gap-3">
+            <div className="w-16 h-16 overflow-hidden border border-gray-200 rounded-full shadow-sm dark:border-gray-800">
+              <img src={currentPhotoSrc} alt="Driver" className="h-full w-full object-cover object-center" />
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Foto: {profile?.facePhotoUrl ? <a className="text-brand-500 hover:underline" href={buildFileUrl(profile.facePhotoUrl)} target="_blank" rel="noreferrer">Lihat</a> : "—"}
+            </div>
+            <span className={statusBadge.klass}>{statusBadge.text}</span>
           </div>
 
-          <form className="flex flex-col" onSubmit={handleSave}>
-            <div className="custom-scrollbar max-h-[60vh] overflow-y-auto px-2 pb-3">
-              {/* Foto */}
-              <div className="mb-6">
-                <Label>Foto Profil</Label>
-                <div className="mt-2 flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-200 dark:border-gray-700">
-                    <img
-                      src={photoPreview || currentPhotoSrc}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => onPickPhoto(e.target.files?.[0] || null)}
-                    />
-                    <p className="mt-1 text-xs text-gray-400">
-                      JPG/PNG, disarankan &lt; 2MB.
-                    </p>
-                  </div>
-                </div>
+          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Nama Lengkap</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {toTitleCase(profile?.name) || "—"}
               </div>
-
-              {/* Form fields */}
-              <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
-                <div>
-                  <Label>Nama Lengkap</Label>
-                  <Input
-                    type="text"
-                    value={name}
-                    onChange={(e: any) => setName(e.target.value)}
-                    placeholder="Nama Lengkap"
-                  />
-                </div>
-                <div>
-                  <Label>NIM</Label>
-                  <Input
-                    type="text"
-                    value={nim}
-                    onChange={(e: any) => setNim(e.target.value)}
-                    placeholder="NIM"
-                  />
-                </div>
-                <div>
-                  <Label>No WhatsApp</Label>
-                  <Input
-                    type="tel"
-                    value={whatsapp}
-                    onChange={(e: any) => setWhatsapp(e.target.value)}
-                    placeholder="08xxxxxxxxxx"
-                  />
-                </div>
-                <div className="lg:col-span-2">
-                  <Label>Alamat</Label>
-                  <Input
-                    type="text"
-                    value={address}
-                    onChange={(e: any) => setAddress(e.target.value)}
-                    placeholder="Alamat lengkap"
-                  />
-                </div>
-              </div>
-
-              {msg && <div className="mt-4 text-sm text-error-500">{msg}</div>}
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">NIM</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.nim || "—"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Tempat Lahir</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.birthPlace || "—"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Tanggal Lahir</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.birthDate ? profile.birthDate.split("T")[0] : "—"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">WhatsApp</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.whatsapp || "—"}
+              </div>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Alamat</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.address || "—"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">KTP</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.idCardUrl ? <a className="text-brand-500 hover:underline" href={buildFileUrl(profile.idCardUrl)} target="_blank" rel="noreferrer">Lihat</a> : "—"}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">KTM</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.studentCardUrl ? <a className="text-brand-500 hover:underline" href={buildFileUrl(profile.studentCardUrl)} target="_blank" rel="noreferrer">Lihat</a> : "—"}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Modal edit profil */}
+      <Modal isOpen={isOpen} onClose={closeModal}>
+        <div className="p-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Edit Profil Driver</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Lengkapi data pribadi dan dokumen Anda.</p>
+          </div>
+
+          <form onSubmit={handleSaveProfile}>
+            <div className="mb-6">
+              <Label>Foto Profil</Label>
+              <div className="mt-2 flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <img src={photoPreview || currentPhotoSrc} alt="Preview" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <input type="file" accept="image/*" onChange={(e) => onPickPhoto(e.target.files?.[0] || null)} />
+                  <p className="mt-1 text-xs text-gray-400">JPG/PNG/WEBP, maks 2MB.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
+              <div>
+                <Label>Nama Lengkap</Label>
+                <Input type="text" value={name} onChange={(e: any) => setName(e.target.value)} placeholder="Nama Lengkap" />
+              </div>
+              <div>
+                <Label>NIM</Label>
+                <Input type="text" value={nim} onChange={(e: any) => setNim(e.target.value)} placeholder="NIM" />
+              </div>
+              <div>
+                <Label>Tempat Lahir</Label>
+                <Input type="text" value={birthPlace} onChange={(e: any) => setBirthPlace(e.target.value)} placeholder="Medan" />
+              </div>
+              <div>
+                <Label>Tanggal Lahir</Label>
+                <Input type="date" value={birthDate} onChange={(e: any) => setBirthDate(e.target.value)} />
+              </div>
+              <div>
+                <Label>No WhatsApp</Label>
+                <Input type="tel" value={whatsapp} onChange={(e: any) => setWhatsapp(e.target.value)} placeholder="08xxxxxxxxxx" />
+              </div>
+              <div className="lg:col-span-2">
+                <Label>Alamat</Label>
+                <Input type="text" value={address} onChange={(e: any) => setAddress(e.target.value)} placeholder="Alamat lengkap" />
+              </div>
+              <div>
+                <Label>URL KTP</Label>
+                <Input type="text" value={idCardUrl} onChange={(e: any) => setIdCardUrl(e.target.value)} placeholder="/uploads/ktp.jpg atau URL" />
+              </div>
+              <div>
+                <Label>URL KTM</Label>
+                <Input type="text" value={studentCardUrl} onChange={(e: any) => setStudentCardUrl(e.target.value)} placeholder="/uploads/ktm.jpg atau URL" />
+              </div>
+            </div>
+
+            {msg && <div className="mt-4 text-sm text-error-500">{msg}</div>}
 
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
               <Button type="button" size="sm" variant="outline" onClick={closeModal} disabled={loading}>
