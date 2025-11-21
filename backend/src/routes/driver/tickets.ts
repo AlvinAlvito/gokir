@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import midtransClient from "midtrans-client";
 
 const router = Router();
 
@@ -9,6 +10,12 @@ const MIN_PURCHASE = 5;
 const PRICE_PER_TICKET = 1000;
 
 router.use(requireRole(["DRIVER"]));
+
+const snap = new midtransClient.Snap({
+  isProduction: process.env.MIDTRANS_IS_SANDBOX === "false",
+  serverKey: process.env.MIDTRANS_SERVER_KEY || "",
+  clientKey: process.env.MIDTRANS_CLIENT_KEY || "",
+});
 
 async function getBalance(userId: string) {
   const bal = await prisma.ticketBalance.findUnique({ where: { userId } });
@@ -77,6 +84,23 @@ router.post("/order", async (req: any, res) => {
   const quantity = parsed.data.quantity;
   const total = quantity * PRICE_PER_TICKET;
 
+  const orderId = `tix-${userId}-${Date.now()}`;
+  const snapParams: any = {
+    transaction_details: {
+      order_id: orderId,
+      gross_amount: total,
+    },
+    item_details: [
+      { id: "ticket", price: PRICE_PER_TICKET, quantity, name: "Tiket transaksi" },
+    ],
+    customer_details: {
+      email: req.user?.email || undefined,
+    },
+    enabled_payments: ["qris"],
+  };
+
+  const snapResp = await snap.createTransaction(snapParams);
+
   const order = await prisma.ticketOrder.create({
     data: {
       userId,
@@ -85,7 +109,9 @@ router.post("/order", async (req: any, res) => {
       totalAmount: total,
       status: "PENDING",
       paymentMethod: "QRIS",
-      paymentPayload: `QRIS|TOTAL=${total}|USER=${userId}|ORDER=${Date.now()}`,
+      paymentPayload: snapResp.token,
+      paymentUrl: snapResp.redirect_url,
+      midtransOrderId: orderId,
     },
   });
 

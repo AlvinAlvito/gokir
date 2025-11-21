@@ -24,6 +24,7 @@ import customerProfileRoute from "@/routes/customer/profile";
 import driverProfileRoute from "@/routes/driver/profile"; 
 import driverAvailabilityRoute from "@/routes/driver/availability";
 import driverTicketsRoute from "@/routes/driver/tickets";
+import webhookMidtrans from "@/routes/webhook/midtrans";
 import storeProfileRoute from "@/routes/store/profile";
 
 const app = express();
@@ -58,6 +59,9 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 app.use("/uploads", express.static(uploadDir));
+
+// Webhook (tanpa auth khusus)
+app.use("/webhook", webhookMidtrans);
 
 // Health
 app.get("/health", (_req, res) => res.json({ ok: true, service: "gokir-backend" }));
