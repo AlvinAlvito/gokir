@@ -16,6 +16,10 @@ import SignUpDriver from "./pages/AuthPages/SignUpDriver";
 import AdminDashboard from "./pages/Admin/Dashboard";
 import AdminDriver from "./pages/Admin/Driver";
 import AdminDriverProfil from "./components/admin/ProfilDriver";
+import AdminAnnouncements from "./pages/Admin/Announcements";
+
+// Superadmin
+import SuperAdminAnnouncements from "./pages/Admin/Announcements";
 
 
 // Customer
@@ -68,6 +72,10 @@ export default function App() {
               <Route path="/dashboard/admin" element={<AdminDashboard />} />
               <Route path="/driver/admin" element={<AdminDriver />} />
               <Route path="/admin/drivers/:id" element={<AdminDriverProfil />} />
+              <Route path="/admin/announcements" element={<AdminAnnouncements />} />
+
+              {/* Superadmin */}
+              <Route path="/superadmin/announcements" element={<SuperAdminAnnouncements />} />
 
               {/* Customer routes */}
               <Route path="/dashboard/customer" element={<CustomerDashboard />} />

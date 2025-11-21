@@ -17,6 +17,8 @@ import sessionRoute from "@/routes/auth/session";
 
 // Feature routes
 import adminDrivers from "@/routes/admin/drivers";
+import adminAnnouncements from "@/routes/admin/announcements";
+import announcementsRoute from "@/routes/announcements";
 import customerProfileRoute from "@/routes/customer/profile";
 import driverProfileRoute from "@/routes/driver/profile"; 
 import storeProfileRoute from "@/routes/store/profile";
@@ -72,6 +74,8 @@ app.use("/auth", universalAuth);
 
 // Fitur lain
 app.use("/admin/drivers", adminDrivers);
+app.use("/admin/announcements", adminAnnouncements);
+app.use("/announcements", announcementsRoute);
 
 app.use("/store/profile", requireAuth, storeProfileRoute);
 app.use("/driver/profile", requireAuth, driverProfileRoute);

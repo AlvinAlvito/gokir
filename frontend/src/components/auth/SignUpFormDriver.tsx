@@ -6,6 +6,7 @@ import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB batas unggah
 
 export default function SignUpFormDriver() {
   const [showPassword, setShowPassword] = useState(false);
@@ -39,6 +40,9 @@ export default function SignUpFormDriver() {
     if (password !== confirm) return setMsg("Konfirmasi password tidak cocok.");
     if (!idCard || !studentCard || !facePhoto) {
       return setMsg("Unggah KTP, KTM, dan Foto Wajah.");
+    }
+    if ([idCard, studentCard, facePhoto].some((f) => f && f.size > MAX_FILE_BYTES)) {
+      return setMsg("Ukuran file maksimal 5MB per berkas (KTP/KTM/Foto).");
     }
 
     try {
@@ -158,7 +162,15 @@ export default function SignUpFormDriver() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setIdCard(e.target.files?.[0] || null)}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      if (f && f.size > MAX_FILE_BYTES) {
+                        setMsg("Ukuran file KTP maksimal 5MB.");
+                        setIdCard(null);
+                        return;
+                      }
+                      setIdCard(f);
+                    }}
                     className="block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-white/5 dark:file:text-white/90 dark:hover:file:bg-white/10"
                   />
                 </div>
@@ -167,7 +179,15 @@ export default function SignUpFormDriver() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setStudentCard(e.target.files?.[0] || null)}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      if (f && f.size > MAX_FILE_BYTES) {
+                        setMsg("Ukuran file KTM maksimal 5MB.");
+                        setStudentCard(null);
+                        return;
+                      }
+                      setStudentCard(f);
+                    }}
                     className="block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-white/5 dark:file:text-white/90 dark:hover:file:bg-white/10"
                   />
                 </div>
@@ -178,7 +198,15 @@ export default function SignUpFormDriver() {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setFacePhoto(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    if (f && f.size > MAX_FILE_BYTES) {
+                      setMsg("Ukuran file Foto Wajah maksimal 5MB.");
+                      setFacePhoto(null);
+                      return;
+                    }
+                    setFacePhoto(f);
+                  }}
                   className="block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-white/5 dark:file:text-white/90 dark:hover:file:bg-white/10"
                 />
               </div>

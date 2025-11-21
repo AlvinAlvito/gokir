@@ -137,3 +137,20 @@ model AuditLog {
   userAgent String?
   createdAt DateTime @default(now())
 }
+
+// Pengumuman / slider info (mading)
+model Announcement {
+  id          String   @id @default(cuid())
+  slug        String   @unique          // identitas unik untuk upsert/seed
+  title       String
+  description String
+  imageUrl    String
+  link        String?
+  forRole     Role?                     // null = untuk semua role
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([forRole, isActive])
+}
