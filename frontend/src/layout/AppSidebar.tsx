@@ -48,6 +48,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   DRIVER: [
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/driver" },
     { icon: <UserCircleIcon />, name: "Profil", path: "/profile/driver" },
+    { icon: <PageIcon />, name: "Ketersediaan", path: "/driver/availability" },
     {
       icon: <PageIcon />,
       name: "Status & Dokumen",

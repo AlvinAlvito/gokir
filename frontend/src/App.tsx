@@ -33,6 +33,7 @@ import StoreDashboard from "./pages/Store/Dashboard";
 // Driver
 import DriverDashboard from "./pages/Driver/Dashboard";
 import DriverProfil from "./pages/Driver/Profile";
+import DriverAvailability from "./pages/Driver/Availability";
 
 // Dashboards (buat halaman placeholder kalau belum ada)
 import NotFound from "./pages/OtherPage/NotFound";
@@ -88,6 +89,7 @@ export default function App() {
                {/* Driver routes */}
               <Route path="/dashboard/driver" element={<DriverDashboard />} />
               <Route path="/profile/driver" element={<DriverProfil />} />
+              <Route path="/driver/availability" element={<DriverAvailability />} />
 
               <Route path="/dashboard/store" element={<StoreDashboard />} />
              

@@ -35,6 +35,7 @@ model User {
   oauthAccounts   OAuthAccount[]
   customerProfile CustomerProfile?
   driverProfile   DriverProfile?
+  driverAvailability DriverAvailability?
   storeProfile    StoreProfile?
   auditLogs       AuditLog[]
 
@@ -92,6 +93,18 @@ enum DriverStatus {
   REJECTED
 }
 
+enum DriverAvailabilityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum DriverRegion {
+  KAMPUS_SUTOMO
+  KAMPUS_TUNTUNGAN
+  KAMPUS_PANCING
+  WILAYAH_LAINNYA
+}
+
 model DriverProfile {
   id             String       @id @default(cuid())
   userId         String       @unique
@@ -115,6 +128,20 @@ model DriverProfile {
   reviewedBy     User?        @relation("ReviewedBy", fields: [reviewedById], references: [id])
 
   createdAt      DateTime     @default(now())
+}
+
+model DriverAvailability {
+  id          String                   @id @default(cuid())
+  userId      String                   @unique
+  user        User                     @relation(fields: [userId], references: [id])
+  status      DriverAvailabilityStatus @default(INACTIVE)
+  region      DriverRegion             @default(WILAYAH_LAINNYA)
+  locationUrl String?
+  latitude    Float?
+  longitude   Float?
+  note        String?
+  updatedAt   DateTime                 @updatedAt
+  createdAt   DateTime                 @default(now())
 }
 
 

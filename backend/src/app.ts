@@ -21,6 +21,7 @@ import adminAnnouncements from "@/routes/admin/announcements";
 import announcementsRoute from "@/routes/announcements";
 import customerProfileRoute from "@/routes/customer/profile";
 import driverProfileRoute from "@/routes/driver/profile"; 
+import driverAvailabilityRoute from "@/routes/driver/availability";
 import storeProfileRoute from "@/routes/store/profile";
 
 const app = express();
@@ -79,6 +80,7 @@ app.use("/announcements", announcementsRoute);
 
 app.use("/store/profile", requireAuth, storeProfileRoute);
 app.use("/driver/profile", requireAuth, driverProfileRoute);
+app.use("/driver/availability", requireAuth, driverAvailabilityRoute);
 
 app.use("/customer/profile", customerProfileRoute);
 
