@@ -21,6 +21,8 @@ router.get("/", requireAuth, requireRole(["ADMIN","SUPERADMIN"]), async (req, re
         whatsapp: true,
         address: true,
         facePhotoUrl: true,
+        idCardUrl: true,
+        studentCardUrl: true,
         status: true,
         createdAt: true,
         user: {
