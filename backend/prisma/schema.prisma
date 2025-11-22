@@ -34,6 +34,7 @@ model User {
   customerProfile    CustomerProfile?
   driverProfile      DriverProfile?
   driverAvailability DriverAvailability?
+  storeAvailability  StoreAvailability?
   ticketBalance      TicketBalance?
   ticketOrders       TicketOrder[]
   ticketTransactions TicketTransaction[]
@@ -86,6 +87,7 @@ model StoreProfile {
   description String?
   categories  String? // CSV sementara (nanti bisa jadi tabel relasi)
   photoUrl    String?
+  status      StoreStatus @default(PENDING)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,6 +102,12 @@ enum DriverStatus {
 enum DriverAvailabilityStatus {
   ACTIVE
   INACTIVE
+}
+
+enum StoreStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum DriverRegion {
@@ -161,6 +169,23 @@ model DriverAvailability {
   latitude    Float?
   longitude   Float?
   note        String?
+  updatedAt   DateTime                 @updatedAt
+  createdAt   DateTime                 @default(now())
+}
+
+model StoreAvailability {
+  id          String                   @id @default(cuid())
+  userId      String                   @unique
+  user        User                     @relation(fields: [userId], references: [id])
+  status      DriverAvailabilityStatus @default(INACTIVE) // gunakan enum yang sama: ACTIVE/INACTIVE
+  region      DriverRegion             @default(WILAYAH_LAINNYA)
+  locationUrl String?
+  latitude    Float?
+  longitude   Float?
+  note        String?
+  openDays    String?                  // CSV hari buka
+  openTime    String?                  // jam buka (HH:mm)
+  closeTime   String?                  // jam tutup (HH:mm)
   updatedAt   DateTime                 @updatedAt
   createdAt   DateTime                 @default(now())
 }

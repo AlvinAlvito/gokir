@@ -40,6 +40,8 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   STORE: [
      { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/store" },
      { icon: <UserCircleIcon />, name: "Profil Toko", path: "/profile/store" },
+    { icon: <PageIcon />, name: "Ketersediaan", path: "/store/availability" },
+    { icon: <PageIcon />, name: "Tiket", path: "/store/tickets" },
     { icon: <ListIcon />, name: "Menu", path: "/menu/store" },
     { icon: <TableIcon />, name: "Pesanan", path: "/pesanan/store" },
      { icon: <TableIcon />, name: "Riwayat", path: "/riwayat/store" },
