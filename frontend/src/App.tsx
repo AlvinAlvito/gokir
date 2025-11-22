@@ -17,6 +17,7 @@ import AdminDashboard from "./pages/Admin/Dashboard";
 import AdminDriver from "./pages/Admin/Driver";
 import AdminDriverProfil from "./components/admin/ProfilDriver";
 import AdminAnnouncements from "./pages/Admin/Announcements";
+import AdminStore from "./components/admin/Store";
 
 // Superadmin
 import SuperAdminAnnouncements from "./pages/Admin/Announcements";
@@ -102,6 +103,7 @@ export default function App() {
 
               {/* Superadmin */}
               <Route path="/driver/superadmin" element={<AdminDriver />} />
+              <Route path="/toko/superadmin" element={<AdminStore />} />
               <Route path="/superadmin/tickets" element={<AdminTickets />} />
 
               <Route path="/dashboard/store" element={<StoreDashboard />} />

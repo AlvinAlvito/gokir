@@ -19,6 +19,7 @@ import sessionRoute from "@/routes/auth/session";
 import adminDrivers from "@/routes/admin/drivers";
 import adminAnnouncements from "@/routes/admin/announcements";
 import adminTickets from "@/routes/admin/tickets";
+import adminStores from "@/routes/admin/stores";
 import announcementsRoute from "@/routes/announcements";
 import customerProfileRoute from "@/routes/customer/profile";
 import driverProfileRoute from "@/routes/driver/profile"; 
@@ -84,6 +85,7 @@ app.use("/auth", universalAuth);
 
 // Fitur lain
 app.use("/admin/drivers", adminDrivers);
+app.use("/admin/stores", adminStores);
 app.use("/admin/announcements", adminAnnouncements);
 app.use("/admin/tickets", adminTickets);
 app.use("/announcements", announcementsRoute);
