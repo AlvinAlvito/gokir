@@ -39,6 +39,8 @@ model User {
   ticketOrders       TicketOrder[]
   ticketTransactions TicketTransaction[]
   storeProfile       StoreProfile?
+  menuCategories     MenuCategory[]
+  menuItems          MenuItem[]
   auditLogs          AuditLog[]
 
   reviewedDrivers DriverProfile[] @relation("ReviewedBy")
@@ -188,6 +190,82 @@ model StoreAvailability {
   closeTime   String?                  // jam tutup (HH:mm)
   updatedAt   DateTime                 @updatedAt
   createdAt   DateTime                 @default(now())
+}
+
+enum MenuOptionGroupType {
+  SINGLE
+  MULTIPLE
+}
+
+model MenuCategory {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       User     @relation(fields: [storeId], references: [id])
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  menuItems   MenuItem[]
+
+  @@index([storeId, sortOrder])
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       User     @relation(fields: [storeId], references: [id])
+  categoryId  String?
+  category    MenuCategory? @relation(fields: [categoryId], references: [id])
+  name        String
+  description String?
+  price       Int
+  promoPrice  Int?
+  photoUrl    String?
+  // akan simpan sebagai path upload; kolom ini tetap String, tapi API akan upload file dan isi path-nya
+  isAvailable Boolean  @default(true)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  optionGroups MenuOptionGroup[]
+
+  @@index([storeId, categoryId, sortOrder])
+}
+
+model MenuOptionGroup {
+  id         String              @id @default(cuid())
+  menuItemId String
+  menuItem   MenuItem            @relation(fields: [menuItemId], references: [id])
+  name       String
+  type       MenuOptionGroupType
+  isRequired Boolean             @default(false)
+  minSelect  Int?                @default(0)
+  maxSelect  Int?                @default(1)
+  sortOrder  Int                 @default(0)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  options MenuOption[]
+
+  @@index([menuItemId, sortOrder])
+}
+
+model MenuOption {
+  id          String   @id @default(cuid())
+  groupId     String
+  group       MenuOptionGroup @relation(fields: [groupId], references: [id])
+  name        String
+  priceDelta  Int      @default(0)
+  isAvailable Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([groupId, sortOrder])
 }
 
 model TicketBalance {

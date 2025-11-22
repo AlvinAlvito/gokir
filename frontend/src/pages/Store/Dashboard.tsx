@@ -5,6 +5,7 @@ import MonthlyTarget from "../../components/ecommerce/MonthlyTarget";
 import RecentOrders from "../../components/ecommerce/RecentOrders";
 import PageMeta from "../../components/common/PageMeta";
 import Slider from "../../components/driver/Slider";
+import MenuManager from "../../components/store/MenuManager";
 
 export default function Dashboard() {
   return (
@@ -36,6 +37,9 @@ export default function Dashboard() {
 
         <div className="col-span-12 xl:col-span-7">
           <RecentOrders />
+        </div>
+        <div className="col-span-12">
+          <MenuManager />
         </div>
       </div>
     </>

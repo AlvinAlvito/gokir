@@ -39,6 +39,7 @@ import DriverAvailability from "./pages/Driver/Availability";
 import DriverTickets from "./pages/Driver/Tickets";
 import StoreAvailability from "./pages/Store/Availability";
 import StoreTickets from "./pages/Store/Tickets";
+import StoreMenuPage from "./pages/Store/Menu";
 
 // Dashboards (buat halaman placeholder kalau belum ada)
 import NotFound from "./pages/OtherPage/NotFound";
@@ -94,6 +95,7 @@ export default function App() {
               <Route path="/profile/store" element={<StoreProfil />} />
               <Route path="/store/availability" element={<StoreAvailability />} />
               <Route path="/store/tickets" element={<StoreTickets />} />
+              <Route path="/store/menu" element={<StoreMenuPage />} />
 
               {/* Driver routes */}
               <Route path="/dashboard/driver" element={<DriverDashboard />} />

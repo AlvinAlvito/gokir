@@ -27,6 +27,7 @@ import driverAvailabilityRoute from "@/routes/driver/availability";
 import driverTicketsRoute from "@/routes/driver/tickets";
 import storeAvailabilityRoute from "@/routes/store/availability";
 import storeTicketsRoute from "@/routes/store/tickets";
+import storeMenuRoute from "@/routes/store/menu";
 import webhookMidtrans from "@/routes/webhook/midtrans";
 import storeProfileRoute from "@/routes/store/profile";
 import statsRoute from "@/routes/stats";
@@ -96,6 +97,7 @@ app.use("/driver/availability", requireAuth, driverAvailabilityRoute);
 app.use("/driver/tickets", requireAuth, driverTicketsRoute);
 app.use("/store/availability", requireAuth, storeAvailabilityRoute);
 app.use("/store/tickets", requireAuth, storeTicketsRoute);
+app.use("/store/menu", requireAuth, storeMenuRoute);
 app.use("/stats", statsRoute);
 
 app.use("/customer/profile", customerProfileRoute);

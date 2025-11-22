@@ -81,3 +81,27 @@ export const uploadStorePhoto = multer({
     cb(null, true);
   },
 }).single("photo");
+
+// ===== STORE MENU PHOTO =====
+const storeMenuStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.resolve(process.cwd(), "uploads", "store-menu");
+    ensureDir(dir);
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || "");
+    const safeExt = ext || ".jpg";
+    cb(null, `store-menu-${Date.now()}-${crypto.randomBytes(8).toString("hex")}${safeExt}`);
+  },
+});
+
+export const uploadStoreMenuPhoto = multer({
+  storage: storeMenuStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /image\/(jpeg|png|webp)/i.test(file.mimetype);
+    if (!ok) return cb(new Error("File harus JPG/PNG/WEBP"));
+    cb(null, true);
+  },
+}).single("photo");
