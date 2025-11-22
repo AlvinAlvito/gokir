@@ -1,7 +1,7 @@
 // src/routes/store/profile.ts
 import { Router } from "express";
 import { prisma } from "@/lib/prisma";
-import { upload } from "@/middleware/upload";
+import { uploadStorePhoto } from "@/middleware/upload";
 import { ok, fail } from "@/utils/http";
 
 const router = Router();
@@ -18,6 +18,9 @@ router.get("/me", async (req: any, res) => {
         id: true,
         userId: true,
         storeName: true,
+        ownerName: true,
+        address: true,
+        mapsUrl: true,
         description: true,
         categories: true,
         photoUrl: true,
@@ -33,6 +36,9 @@ router.get("/me", async (req: any, res) => {
           id: true,
           userId: true,
           storeName: true,
+          ownerName: true,
+          address: true,
+          mapsUrl: true,
           description: true,
           categories: true,
           photoUrl: true,
@@ -42,7 +48,12 @@ router.get("/me", async (req: any, res) => {
       });
     }
 
-    return res.json(ok({ profile }));
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, email: true, phone: true, role: true },
+    });
+
+    return res.json(ok({ profile, user }));
   } catch (e: any) {
     return res.status(500).json(fail(e.message || "Server error"));
   }
@@ -54,21 +65,27 @@ router.patch("/", async (req: any, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json(fail("Unauthorized"));
 
-    let { storeName, description, categories, photoUrl } = req.body as {
+    let { storeName, ownerName, address, mapsUrl, description, categories, photoUrl } = req.body as {
       storeName?: string | null;
+      ownerName?: string | null;
+      address?: string | null;
+      mapsUrl?: string | null;
       description?: string | null;
       categories?: string | string[] | null;
       photoUrl?: string | null;
     };
 
     if (Array.isArray(categories)) {
-      categories = categories.map(s => `${s}`.trim()).filter(Boolean).join(",");
+      categories = categories.map((s) => `${s}`.trim()).filter(Boolean).join(",");
     }
 
     const profile = await prisma.storeProfile.upsert({
       where: { userId },
       update: {
         ...(storeName !== undefined ? { storeName } : {}),
+        ...(ownerName !== undefined ? { ownerName } : {}),
+        ...(address !== undefined ? { address } : {}),
+        ...(mapsUrl !== undefined ? { mapsUrl } : {}),
         ...(description !== undefined ? { description } : {}),
         ...(categories !== undefined ? { categories } : {}),
         ...(photoUrl !== undefined ? { photoUrl } : {}),
@@ -76,6 +93,9 @@ router.patch("/", async (req: any, res) => {
       create: {
         userId,
         storeName: storeName ?? undefined,
+        ownerName: ownerName ?? undefined,
+        address: address ?? undefined,
+        mapsUrl: mapsUrl ?? undefined,
         description: description ?? undefined,
         categories: (categories as string | null) ?? undefined,
         photoUrl: photoUrl ?? undefined,
@@ -84,6 +104,9 @@ router.patch("/", async (req: any, res) => {
         id: true,
         userId: true,
         storeName: true,
+        ownerName: true,
+        address: true,
+        mapsUrl: true,
         description: true,
         categories: true,
         photoUrl: true,
@@ -103,12 +126,11 @@ router.post("/photo", (req: any, res) => {
   const userId = req.user?.id;
   if (!userId) return res.status(401).json(fail("Unauthorized"));
 
-  // ✅ panggil method .single("photo") supaya menjadi middleware function
-  upload.single("photo")(req, res, async (err: any) => {
+  uploadStorePhoto(req, res, async (err: any) => {
     if (err) return res.status(400).json(fail(err.message || "Upload failed"));
     if (!req.file) return res.status(400).json(fail("No file uploaded"));
 
-    const relative = `/uploads/${req.file.filename}`;
+    const relative = `/uploads/store/${req.file.filename}`;
 
     try {
       const profile = await prisma.storeProfile.upsert({
@@ -119,6 +141,9 @@ router.post("/photo", (req: any, res) => {
           id: true,
           userId: true,
           storeName: true,
+          ownerName: true,
+          address: true,
+          mapsUrl: true,
           description: true,
           categories: true,
           photoUrl: true,

@@ -11,11 +11,22 @@ type StoreProfileT = {
   id: string;
   userId: string;
   storeName?: string | null;
+  ownerName?: string | null;
+  address?: string | null;
+  mapsUrl?: string | null;
   description?: string | null;
   categories?: string | null; // CSV
   photoUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
+};
+
+type UserInfo = {
+  id: string;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
 };
 
 export default function StoreProfile() {
@@ -25,9 +36,13 @@ export default function StoreProfile() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const [profile, setProfile] = useState<StoreProfileT | null>(null);
+  const [user, setUser] = useState<UserInfo | null>(null);
 
   // form state
   const [storeName, setStoreName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [address, setAddress] = useState("");
+  const [mapsUrl, setMapsUrl] = useState("");
   const [description, setDescription] = useState("");
   const [categories, setCategories] = useState("");
 
@@ -59,9 +74,14 @@ export default function StoreProfile() {
         const json = await r.json();
         if (!r.ok || !json?.ok) throw new Error(json?.error?.message || "Gagal memuat profil toko");
         const p: StoreProfileT = json.data.profile;
+        const u: UserInfo | undefined = json.data.user;
         setProfile(p);
+        setUser(u ?? null);
         // sync form
         setStoreName(p.storeName ?? "");
+        setOwnerName(p.ownerName ?? "");
+        setAddress(p.address ?? "");
+        setMapsUrl(p.mapsUrl ?? "");
         setDescription(p.description ?? "");
         setCategories(p.categories ?? "");
       } catch (e: any) {
@@ -78,6 +98,9 @@ export default function StoreProfile() {
     setPhotoFile(null);
     // sync ulang form dari profile terbaru
     setStoreName(profile?.storeName ?? "");
+    setOwnerName(profile?.ownerName ?? "");
+    setAddress(profile?.address ?? "");
+    setMapsUrl(profile?.mapsUrl ?? "");
     setDescription(profile?.description ?? "");
     setCategories(profile?.categories ?? "");
     openModal();
@@ -118,6 +141,9 @@ export default function StoreProfile() {
       // 2) update data teks
       const payload: Partial<StoreProfileT> = {
         storeName: storeName.trim() || null,
+        ownerName: ownerName.trim() || null,
+        address: address.trim() || null,
+        mapsUrl: mapsUrl.trim() || null,
         description: description.trim() || null,
         categories: categories.trim() || null, // CSV
         ...(newPhotoUrl ? { photoUrl: newPhotoUrl } : {}),
@@ -164,72 +190,163 @@ export default function StoreProfile() {
     }
   };
 
+  const embedUrl = useMemo(() => {
+    if (!profile?.mapsUrl) return "";
+    return profile.mapsUrl;
+  }, [profile?.mapsUrl]);
+
   return (
     <>
-      {/* Header card */}
-      <div className="p-5 rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-col items-center w-full gap-6 xl:flex-row">
-            {/* Avatar */}
-            <div className="w-20 h-20 overflow-hidden border border-gray-200 rounded-full dark:border-gray-800">
+      {/* Card Akun User */}
+      <div className="p-5 rounded-3xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] lg:p-6 mb-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Akun Toko</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Data akun dari tabel User.</p>
+            {user && (
+              <div className="mt-2 inline-flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 bg-gray-100/60 dark:bg-gray-800/60 px-3 py-1.5 rounded-full">
+                <span>ID: {user.id}</span>
+                <span className="h-3 w-px bg-gray-300 dark:bg-gray-700" />
+                <span>Role: {user.role}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <Label className="text-xs text-gray-500 dark:text-gray-400">Username</Label>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+              {user?.username || "—"}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-gray-500 dark:text-gray-400">Email</Label>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+              {user?.email || "—"}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-gray-500 dark:text-gray-400">No. Telepon</Label>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+              {user?.phone || "—"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Card Profil Toko */}
+      <div className="p-5 rounded-3xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="space-y-1">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Profil Toko</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Data lengkap toko (StoreProfile).</p>
+          </div>
+          <div className="flex gap-3">
+            {profile?.photoUrl && (
+              <Button size="sm" variant="outline" onClick={handleDeletePhoto} disabled={loading}>
+                Hapus Foto
+              </Button>
+            )}
+            <Button size="sm" onClick={onClickEdit} disabled={loading}>
+              Edit
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+          <div className="md:col-span-1 flex flex-col items-center gap-3">
+            <div className="w-20 h-20 overflow-hidden border border-gray-200 rounded-full shadow-sm dark:border-gray-800">
               <img
                 src={currentPhotoSrc}
                 alt="Store"
                 className="h-full w-full object-cover object-center"
               />
             </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Foto: {profile?.photoUrl ? <a className="text-brand-500 hover:underline" href={toAbs(profile.photoUrl)} target="_blank" rel="noreferrer">Lihat</a> : "—"}
+            </div>
+          </div>
 
-            {/* Info */}
-            <div className="order-3 xl:order-2">
-              <div className="flex items-center justify-center xl:justify-start gap-3 mb-1">
-                <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-                  {profile?.storeName || "—"}
-                </h4>
+          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Nama Toko</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.storeName || "—"}
               </div>
-
-              {profile?.description && (
-                <div className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400 text-center xl:text-left">
-                  {profile.description}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Nama Pemilik</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.ownerName || "—"}
+              </div>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Alamat Lengkap</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.address || "—"}
+              </div>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Link Google Maps</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.mapsUrl ? (
+                  <a className="text-brand-500 hover:underline" href={profile.mapsUrl} target="_blank" rel="noreferrer">
+                    {profile.mapsUrl}
+                  </a>
+                ) : "—"}
+              </div>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Deskripsi</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 min-h-[44px]">
+                {profile?.description || "—"}
+              </div>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Kategori (CSV)</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.categories || "—"}
+              </div>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">Foto Toko</Label>
+              {profile?.photoUrl ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-16 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+                    <img src={toAbs(profile.photoUrl)} alt="Foto toko" className="w-full h-full object-cover" />
+                  </div>
+                  <a
+                    className="text-brand-500 hover:underline text-sm"
+                    href={toAbs(profile.photoUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Lihat gambar
+                  </a>
                 </div>
-              )}
-
-              {profile?.categories && (
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center xl:text-left">
-                  Kategori: {profile.categories}
+              ) : (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                  —
                 </div>
               )}
             </div>
-
-            {/* spacer kanan */}
-            <div className="flex items-center order-2 gap-2 grow xl:order-3 xl:justify-end" />
-          </div>
-
-          <div className="flex items-center gap-3">
-            {profile?.photoUrl && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleDeletePhoto}
-                disabled={loading}
-              >
-                Hapus Foto
-              </Button>
-            )}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onClickEdit}
-              disabled={loading}
-            >
-              Edit
-            </Button>
           </div>
         </div>
+
+        {embedUrl && (
+          <div className="mt-4">
+            <p className="text-xs text-gray-500 mb-2 dark:text-gray-400">Lokasi di Google Maps</p>
+            <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+              <iframe src={embedUrl} className="w-full h-56" loading="lazy"></iframe>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal Edit */}
-      <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
-        <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
+      <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[760px] m-4">
+        <div className="no-scrollbar relative w-full max-w-[760px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
           <div className="px-2 pr-14">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
               Edit Profil Toko
@@ -243,7 +360,7 @@ export default function StoreProfile() {
             <div className="custom-scrollbar max-h-[60vh] overflow-y-auto px-2 pb-3">
               {/* Foto */}
               <div className="mb-6">
-                <Label>Foto Profil</Label>
+                <Label>Foto Toko</Label>
                 <div className="mt-2 flex items-center gap-4">
                   <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-200 dark:border-gray-700">
                     <img
@@ -259,7 +376,7 @@ export default function StoreProfile() {
                       onChange={(e) => onPickPhoto(e.target.files?.[0] || null)}
                     />
                     <p className="mt-1 text-xs text-gray-400">
-                      JPG/PNG/WEBP, disarankan &lt; 2MB.
+                      JPG/PNG/WEBP, disarankan &lt; 5MB.
                     </p>
                   </div>
                 </div>
@@ -278,14 +395,43 @@ export default function StoreProfile() {
                 </div>
 
                 <div className="lg:col-span-2">
+                  <Label>Nama Pemilik</Label>
+                  <Input
+                    type="text"
+                    value={ownerName}
+                    onChange={(e: any) => setOwnerName(e.target.value)}
+                    placeholder="Nama pemilik"
+                  />
+                </div>
+
+                <div className="lg:col-span-2">
+                  <Label>Alamat Lengkap</Label>
+                  <Input
+                    type="text"
+                    value={address}
+                    onChange={(e: any) => setAddress(e.target.value)}
+                    placeholder="Jl. Contoh No.1, Kota"
+                  />
+                </div>
+
+                <div className="lg:col-span-2">
+                  <Label>Link Google Maps</Label>
+                  <Input
+                    type="url"
+                    value={mapsUrl}
+                    onChange={(e: any) => setMapsUrl(e.target.value)}
+                    placeholder="https://maps.google.com/?q=..."
+                  />
+                </div>
+
+                <div className="lg:col-span-2">
                   <Label>Deskripsi</Label>
-                  {/* jika kamu punya TextArea komponen sendiri, ganti ini */}
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Deskripsi singkat toko"
                     className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-                    rows={4}
+                    rows={3}
                   />
                 </div>
 

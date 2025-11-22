@@ -22,6 +22,10 @@ export default function SignUpFormStore() {
 
   // form states
   const [storeName, setStoreName] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [address, setAddress] = useState("");
+  const [mapsUrl, setMapsUrl] = useState("");
+  const [storePhoto, setStorePhoto] = useState<File | null>(null);
   const [whatsapp, setWhatsapp] = useState(""); // akan dipakai saat lengkapi profil
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -79,8 +83,8 @@ export default function SignUpFormStore() {
       setMsg("Silakan setujui Syarat & Privasi terlebih dahulu.");
       return;
     }
-    if (!storeName || !email || !password || !confirm) {
-      setMsg("Nama Toko, email, password, dan konfirmasi wajib diisi.");
+    if (!storeName || !ownerName || !address || !mapsUrl || !email || !password || !confirm) {
+      setMsg("Nama Toko, Pemilik, Alamat, Link Maps, email, password, dan konfirmasi wajib diisi.");
       return;
     }
     if (password.length < 6) {
@@ -96,11 +100,29 @@ export default function SignUpFormStore() {
       setLoading(true);
       setMsg(null);
 
-      // Endpoint backend store saat ini menerima: { email, password, storeName }
+      // Upload foto jika ada
+      let photoUrl: string | undefined;
+      if (storePhoto) {
+        const fd = new FormData();
+        fd.append("photo", storePhoto);
+        const up = await fetch(`${API_URL}/auth/store/upload-photo`, {
+          method: "POST",
+          credentials: "include",
+          body: fd,
+        });
+        const jUp = await up.json();
+        if (!up.ok || !jUp.ok) throw new Error(jUp?.error?.message || "Upload foto gagal");
+        photoUrl = jUp.data.photoUrl;
+      }
+
       const payload = {
         email: email.trim(),
         password,
         storeName: storeName.trim(),
+        ownerName: ownerName.trim(),
+        address: address.trim(),
+        mapsUrl: mapsUrl.trim(),
+        photoUrl,
       };
 
       const r = await fetch(`${API_URL}/auth/store/register-email`, {
@@ -164,6 +186,65 @@ export default function SignUpFormStore() {
                     value={storeName}
                     onChange={(e: any) => setStoreName(e.target.value)}
                   />
+                </div>
+
+                {/* Nama Pemilik */}
+                <div>
+                  <Label>
+                    Nama Pemilik<span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    id="ownerName"
+                    name="ownerName"
+                    placeholder="Nama pemilik toko"
+                    value={ownerName}
+                    onChange={(e: any) => setOwnerName(e.target.value)}
+                  />
+                </div>
+
+                {/* Alamat lengkap */}
+                <div>
+                  <Label>
+                    Alamat Lengkap Toko<span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    id="address"
+                    name="address"
+                    placeholder="Jl. Contoh No.1, Kota"
+                    value={address}
+                    onChange={(e: any) => setAddress(e.target.value)}
+                  />
+                </div>
+
+                {/* Link Google Maps */}
+                <div>
+                  <Label>
+                    Link Google Maps Toko<span className="text-error-500">*</span>
+                  </Label>
+                  <Input
+                    type="url"
+                    id="mapsUrl"
+                    name="mapsUrl"
+                    placeholder="https://maps.google.com/?q=..."
+                    value={mapsUrl}
+                    onChange={(e: any) => setMapsUrl(e.target.value)}
+                  />
+                </div>
+
+                {/* Foto Toko */}
+                <div>
+                  <Label>Foto Toko (JPG/PNG/WEBP, maks 5MB)</Label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setStorePhoto(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-gray-700 dark:text-gray-200"
+                  />
+                  {storePhoto && (
+                    <p className="text-xs text-gray-500 mt-1">{storePhoto.name}</p>
+                  )}
                 </div>
 
                 {/* No WhatsApp (opsional, simpan saat lengkapi profil) */}
