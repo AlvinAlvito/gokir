@@ -26,7 +26,7 @@ export default function SignUpFormStore() {
   const [address, setAddress] = useState("");
   const [mapsUrl, setMapsUrl] = useState("");
   const [storePhoto, setStorePhoto] = useState<File | null>(null);
-  const [whatsapp, setWhatsapp] = useState(""); // akan dipakai saat lengkapi profil
+  const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
@@ -122,6 +122,7 @@ export default function SignUpFormStore() {
         ownerName: ownerName.trim(),
         address: address.trim(),
         mapsUrl: mapsUrl.trim(),
+        phone: whatsapp.trim(),
         photoUrl,
       };
 

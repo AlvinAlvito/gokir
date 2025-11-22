@@ -3,6 +3,8 @@ import { Router } from "express";
 import { prisma } from "@/lib/prisma";
 import { uploadStorePhoto } from "@/middleware/upload";
 import { ok, fail } from "@/utils/http";
+import { hashPassword } from "@/lib/auth";
+import { z } from "zod";
 
 const router = Router();
 
@@ -177,3 +179,78 @@ router.delete("/photo", async (req: any, res) => {
 });
 
 export default router;
+
+// GET /store/profile/account
+router.get("/account", async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json(fail("Unauthorized"));
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, username: true, email: true, phone: true, role: true },
+    });
+    if (!user) return res.status(404).json(fail("User not found"));
+
+    return res.json(ok({ user }));
+  } catch (e: any) {
+    return res.status(500).json(fail(e.message || "Server error"));
+  }
+});
+
+// PATCH /store/profile/account
+router.patch("/account", async (req: any, res) => {
+  const userId = req.user?.id;
+  if (!userId) return res.status(401).json(fail("Unauthorized"));
+
+  const schema = z.object({
+    username: z.string().min(3).max(50).trim().optional(),
+    email: z.string().email().trim().optional(),
+    phone: z.string().min(6).max(20).trim().optional(),
+    password: z.string().min(6).optional(),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    const detail = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    return res.status(400).json(fail(`Invalid payload: ${detail}`));
+  }
+
+  const { username, email, phone, password } = parsed.data;
+  if (!username && !email && !phone && !password) {
+    return res.status(400).json(fail("No changes provided"));
+  }
+
+  try {
+    if (username) {
+      const exists = await prisma.user.findFirst({
+        where: { username, NOT: { id: userId } },
+        select: { id: true },
+      });
+      if (exists) return res.status(409).json(fail("Username sudah dipakai"));
+    }
+    if (email) {
+      const exists = await prisma.user.findFirst({
+        where: { email, NOT: { id: userId } },
+        select: { id: true },
+      });
+      if (exists) return res.status(409).json(fail("Email sudah dipakai"));
+    }
+
+    const data: any = {};
+    if (username !== undefined) data.username = username;
+    if (email !== undefined) data.email = email;
+    if (phone !== undefined) data.phone = phone;
+    if (password) data.passwordHash = await hashPassword(password);
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data,
+      select: { id: true, username: true, email: true, phone: true, role: true },
+    });
+
+    return res.json(ok({ user }));
+  } catch (e: any) {
+    return res.status(500).json(fail(e.message || "Server error"));
+  }
+});

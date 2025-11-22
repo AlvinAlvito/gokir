@@ -37,6 +37,7 @@ export default function StoreProfile() {
 
   const [profile, setProfile] = useState<StoreProfileT | null>(null);
   const [user, setUser] = useState<UserInfo | null>(null);
+  const [accountModal, setAccountModal] = useState(false);
 
   // form state
   const [storeName, setStoreName] = useState("");
@@ -48,6 +49,12 @@ export default function StoreProfile() {
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  // account form
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
 
   const defaultPhoto = "/images/user/owner.jpg";
 
@@ -77,6 +84,9 @@ export default function StoreProfile() {
         const u: UserInfo | undefined = json.data.user;
         setProfile(p);
         setUser(u ?? null);
+        setUsername(u?.username ?? "");
+        setEmail(u?.email ?? "");
+        setPhone(u?.phone ?? "");
         // sync form
         setStoreName(p.storeName ?? "");
         setOwnerName(p.ownerName ?? "");
@@ -113,6 +123,47 @@ export default function StoreProfile() {
       setPhotoPreview(url);
     } else {
       setPhotoPreview(null);
+    }
+  };
+
+  const onClickAccountEdit = () => {
+    setMsg(null);
+    setPassword("");
+    setAccountModal(true);
+  };
+
+  const handleSaveAccount = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    try {
+      setLoading(true);
+      setMsg(null);
+      const payload: any = {
+        username: username.trim() || undefined,
+        email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+      };
+      if (password.trim()) payload.password = password.trim();
+
+      const r = await fetch(`${API_URL}/store/profile/account`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await r.json();
+      if (!r.ok || !json?.ok) throw new Error(json?.error?.message || "Simpan akun gagal");
+
+      const u: UserInfo = json.data.user;
+      setUser(u);
+      setUsername(u.username ?? "");
+      setEmail(u.email ?? "");
+      setPhone(u.phone ?? "");
+      setPassword("");
+      setAccountModal(false);
+    } catch (e: any) {
+      setMsg(e.message || "Terjadi kesalahan");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -192,7 +243,7 @@ export default function StoreProfile() {
 
   const embedUrl = useMemo(() => {
     if (!profile?.mapsUrl) return "";
-    return profile.mapsUrl;
+    return `https://www.google.com/maps?q=${encodeURIComponent(profile.mapsUrl)}&output=embed`;
   }, [profile?.mapsUrl]);
 
   return (
@@ -210,6 +261,11 @@ export default function StoreProfile() {
                 <span>Role: {user.role}</span>
               </div>
             )}
+          </div>
+          <div>
+            <Button size="sm" variant="outline" onClick={onClickAccountEdit} disabled={loading}>
+              Edit Akun
+            </Button>
           </div>
         </div>
 
@@ -297,6 +353,12 @@ export default function StoreProfile() {
                 ) : "—"}
               </div>
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">WhatsApp</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {user?.phone || "—"}
+              </div>
+            </div>
             <div className="space-y-1 md:col-span-2">
               <Label className="text-xs text-gray-500 dark:text-gray-400">Deskripsi</Label>
               <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90 min-h-[44px]">
@@ -329,16 +391,24 @@ export default function StoreProfile() {
                 <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
                   —
                 </div>
-              )}
-            </div>
+            )}
           </div>
+         
+        </div>
         </div>
 
         {embedUrl && (
           <div className="mt-4">
             <p className="text-xs text-gray-500 mb-2 dark:text-gray-400">Lokasi di Google Maps</p>
-            <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-              <iframe src={embedUrl} className="w-full h-56" loading="lazy"></iframe>
+            <div className="relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+              <iframe src={embedUrl} className="w-full h-56 pointer-events-none" loading="lazy"></iframe>
+              <a
+                href={profile?.mapsUrl || "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="absolute inset-0"
+                aria-label="Buka Google Maps"
+              />
             </div>
           </div>
         )}
@@ -456,6 +526,39 @@ export default function StoreProfile() {
               <Button type="submit" size="sm" disabled={loading}>
                 {loading ? "Menyimpan..." : "Simpan"}
               </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Modal Edit Akun */}
+      <Modal isOpen={accountModal} onClose={() => setAccountModal(false)} className="max-w-[640px] m-4">
+        <div className="p-6 space-y-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Edit Akun Toko</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Ubah username, email, telepon, atau password.</p>
+          </div>
+          <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleSaveAccount}>
+            <div className="space-y-2">
+              <Label>Username</Label>
+              <Input value={username} onChange={(e: any) => setUsername(e.target.value)} placeholder="mis. toko01" />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="email@example.com" />
+            </div>
+            <div className="space-y-2">
+              <Label>No. WhatsApp</Label>
+              <Input value={phone} onChange={(e: any) => setPhone(e.target.value)} placeholder="08xxxxxxxxxx" />
+            </div>
+            <div className="space-y-2">
+              <Label>Password (kosongkan jika tidak diubah)</Label>
+              <Input type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} placeholder="••••••" />
+            </div>
+            {msg && <div className="md:col-span-2 text-sm text-error-500">{msg}</div>}
+            <div className="md:col-span-2 flex items-center gap-3 justify-end">
+              <Button type="button" size="sm" variant="outline" onClick={() => setAccountModal(false)} disabled={loading}>Tutup</Button>
+              <Button type="submit" size="sm" disabled={loading}>{loading ? "Menyimpan..." : "Simpan"}</Button>
             </div>
           </form>
         </div>

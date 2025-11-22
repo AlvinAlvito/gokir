@@ -17,12 +17,13 @@ router.post("/register-email", async (req, res) => {
     ownerName: z.string().min(1),
     address: z.string().min(1),
     mapsUrl: z.string().url(),
-    photoUrl: z.string().min(1).optional()
+    photoUrl: z.string().min(1).optional(),
+    phone: z.string().min(6).max(20).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json(fail("Invalid payload"));
 
-  const { email, password, storeName, ownerName, address, mapsUrl, photoUrl } = parsed.data;
+  const { email, password, storeName, ownerName, address, mapsUrl, photoUrl, phone } = parsed.data;
 
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) return res.status(409).json(fail("Email already registered"));
@@ -31,6 +32,7 @@ router.post("/register-email", async (req, res) => {
   const user = await prisma.user.create({
     data: {
       email,
+      phone: phone ?? undefined,
       passwordHash,
       role: "STORE",
       isEmailVerified: false,
