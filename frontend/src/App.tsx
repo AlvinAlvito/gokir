@@ -48,6 +48,7 @@ function RedirectToRoleDashboard() {
     user.role === "CUSTOMER" ? "/dashboard/customer" :
     user.role === "STORE" ? "/dashboard/store" :
     user.role === "DRIVER" ? "/dashboard/driver" :
+    user.role === "SUPERADMIN" ? "/dashboard/superadmin" :
     "/dashboard/admin";
   return <Navigate to={path} replace />;
 }
@@ -78,6 +79,7 @@ export default function App() {
               <Route path="/admin/announcements" element={<AdminAnnouncements />} />
 
               {/* Superadmin */}
+              <Route path="/dashboard/superadmin" element={<AdminDashboard />} />
               <Route path="/superadmin/announcements" element={<SuperAdminAnnouncements />} />
 
               {/* Customer routes */}
@@ -95,6 +97,7 @@ export default function App() {
               <Route path="/driver/tickets" element={<DriverTickets />} />
 
               {/* Superadmin */}
+              <Route path="/driver/superadmin" element={<AdminDriver />} />
               <Route path="/superadmin/tickets" element={<AdminTickets />} />
 
               <Route path="/dashboard/store" element={<StoreDashboard />} />

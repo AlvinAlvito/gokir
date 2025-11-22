@@ -80,6 +80,9 @@ model StoreProfile {
   user   User   @relation(fields: [userId], references: [id])
 
   storeName   String?
+  ownerName   String?
+  address     String?
+  mapsUrl     String?
   description String?
   categories  String? // CSV sementara (nanti bisa jadi tabel relasi)
   photoUrl    String?

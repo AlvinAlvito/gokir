@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
-import { useNavigate } from "react-router";
 import Badge from "../ui/badge/Badge";
 import { Modal } from "../ui/modal";
-import Button from "../ui/button/Button";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -16,6 +14,8 @@ type DriverCardItem = {
   whatsapp?: string | null;
   address?: string | null;
   facePhotoUrl?: string | null;
+  idCardUrl?: string | null;
+  studentCardUrl?: string | null;
   status: DriverStatus;
   user?: {
     id: string;
@@ -23,6 +23,16 @@ type DriverCardItem = {
     email?: string | null;
     phone?: string | null;
     role: string;
+    ticketBalance?: { balance: number } | null;
+    driverAvailability?: {
+      status: "ACTIVE" | "INACTIVE";
+      region: string | null;
+      locationUrl?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
+      note?: string | null;
+      updatedAt?: string;
+    } | null;
   } | null;
 };
 
@@ -33,7 +43,6 @@ export default function DaftarDriver() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selected, setSelected] = useState<DriverCardItem | null>(null);
   const itemsPerPage = 6;
-  const navigate = useNavigate();
 
   const fetchData = async () => {
     setLoading(true);
@@ -79,6 +88,18 @@ export default function DaftarDriver() {
     if (!rel) return "/images/user/user-01.jpg";
     if (/^https?:\/\//i.test(rel)) return rel;
     return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
+  };
+
+  const normalizeWhatsapp = (wa?: string | null) => {
+    if (!wa) return { display: "—", link: "" };
+    const digits = wa.replace(/\D/g, "");
+    const normalized = digits.startsWith("0")
+      ? `62${digits.slice(1)}`
+      : digits.startsWith("62")
+      ? digits
+      : `62${digits}`;
+    const display = `+${normalized}`;
+    return { display, link: `https://wa.me/${normalized}` };
   };
 
   const approve = async (id: string) => {
@@ -190,13 +211,25 @@ export default function DaftarDriver() {
                   <span className="font-medium text-gray-700 dark:text-white">
                     WhatsApp: <br />
                   </span>
-                  {driver.whatsapp ?? "—"}
+                  {(() => {
+                    const { display, link } = normalizeWhatsapp(driver.whatsapp);
+                    return link ? (
+                      <a
+                        className="text-brand-500 hover:underline"
+                        href={link}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {display}
+                      </a>
+                    ) : "—";
+                  })()}
                 </p>
                 <p>
                   <span className="font-medium text-gray-700 dark:text-white">
-                    Alamat: <br />
+                    Email: <br />
                   </span>
-                  {driver.address ?? "—"}
+                  {driver.user?.email ?? "—"}
                 </p>
                 <p>
                   <span className="font-medium text-gray-700 dark:text-white">
@@ -208,6 +241,12 @@ export default function DaftarDriver() {
                   >
                     {driver.status === "PENDING" ? "Menunggu Verifikasi" : driver.status === "APPROVED" ? "Aktif" : "Ditolak"}
                   </Badge>
+                </p>
+                <p>
+                  <span className="font-medium text-gray-700 dark:text-white">
+                    Tiket:
+                  </span>{" "}
+                  {driver.user?.ticketBalance?.balance ?? 0}
                 </p>
               </div>
 
@@ -277,7 +316,7 @@ export default function DaftarDriver() {
       </div>
 
       <Modal isOpen={!!selected} onClose={() => setSelected(null)} className="max-w-4xl m-4">
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 max-h-[90vh] overflow-y-auto">
           <div className="flex items-start justify-between">
             <div>
               <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">Profil Driver</h4>
@@ -327,6 +366,7 @@ export default function DaftarDriver() {
                 <div className="text-sm text-gray-700 dark:text-white/90 space-y-1">
                   <div>WhatsApp: {selected.whatsapp || "—"}</div>
                   <div>Alamat: {selected.address || "—"}</div>
+                  <div>Tiket: {selected.user?.ticketBalance?.balance ?? 0}</div>
                   <div className="pt-2 space-y-2">
                     <div className="text-xs text-gray-500 dark:text-gray-400">Dokumen</div>
                     <div className="flex gap-3 flex-wrap">
@@ -336,6 +376,10 @@ export default function DaftarDriver() {
                     </div>
                   </div>
                 </div>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900 p-4 space-y-2">
+                <h5 className="text-sm font-semibold text-gray-800 dark:text-white/90">Ketersediaan Driver</h5>
+                <AvailabilityInfo driver={selected} />
               </div>
             </div>
           )}
@@ -356,6 +400,27 @@ function DocThumb({ label, url, buildImageUrl }: { label: string; url?: string |
       <a href={src} target="_blank" rel="noreferrer" className="block w-20 h-14 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
         <img src={src} alt={label} className="w-full h-full object-cover" />
       </a>
+    </div>
+  );
+}
+
+function AvailabilityInfo({ driver }: { driver: DriverCardItem }) {
+  const av = driver.user?.driverAvailability;
+  if (!av) {
+    return (
+      <div className="text-sm text-gray-500 dark:text-gray-400">
+        Ketersediaan belum diatur.
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1 text-sm text-gray-700 dark:text-white/90">
+      <div>Status: {av.status === "ACTIVE" ? "Aktif" : "Tidak Aktif"}</div>
+      <div>Wilayah: {av.region || "—"}</div>
+      <div>Link Maps: {av.locationUrl ? <a href={av.locationUrl} target="_blank" rel="noreferrer" className="text-brand-500 hover:underline">Buka Maps</a> : "—"}</div>
+      <div>Koordinat: {av.latitude != null && av.longitude != null ? `${av.latitude}, ${av.longitude}` : "—"}</div>
+      <div>Catatan: {av.note || "—"}</div>
+      <div>Diperbarui: {av.updatedAt ? new Date(av.updatedAt).toLocaleString() : "—"}</div>
     </div>
   );
 }

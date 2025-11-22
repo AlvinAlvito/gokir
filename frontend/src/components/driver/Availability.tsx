@@ -51,6 +51,7 @@ export default function DriverAvailability() {
   const [mapsLink, setMapsLink] = useState("");
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
+  const [driverStatus, setDriverStatus] = useState<"PENDING" | "APPROVED" | "REJECTED" | null>(null);
 
   const hasLocation = useMemo(
     () => Boolean(mapsLink || (lat !== null && lng !== null)),
@@ -72,19 +73,26 @@ export default function DriverAvailability() {
     try {
       setLoading(true);
       setMsg(null);
-      const [rAvail, rTicket] = await Promise.all([
+      const [rAvail, rTicket, rProfile] = await Promise.all([
         fetch(`${API_URL}/driver/availability`, { credentials: "include" }),
         fetch(`${API_URL}/driver/tickets`, { credentials: "include" }),
+        fetch(`${API_URL}/driver/profile/me`, { credentials: "include" }),
       ]);
       const jA = await rAvail.json();
       const jT = await rTicket.json();
+      const jP = rProfile.ok ? await rProfile.json() : null;
       if (!rAvail.ok || !jA?.ok) throw new Error(jA?.error?.message || "Gagal memuat ketersediaan");
       if (!rTicket.ok || !jT?.ok) throw new Error(jT?.error?.message || "Gagal memuat saldo tiket");
       const av: Availability = jA.data.availability;
+      const dsApi = jA.data.driverStatus as "PENDING" | "APPROVED" | "REJECTED" | undefined;
+      const dsProfile = jP?.data?.profile?.status as "PENDING" | "APPROVED" | "REJECTED" | undefined;
+      const ds = dsProfile || dsApi;
       const bal = jT.data.balance ?? 0;
       setData(av);
       setBalance(bal);
-      setStatus(bal <= 0 ? "INACTIVE" : av.status);
+      setDriverStatus(ds ?? null);
+      const effectiveStatus = bal <= 0 || ds !== "APPROVED" ? "INACTIVE" : av.status;
+      setStatus(effectiveStatus);
       setRegion(av.region);
       setNote(av.note ?? "");
       setMapsLink(av.locationUrl ?? "");
@@ -96,6 +104,13 @@ export default function DriverAvailability() {
       setLoading(false);
     }
   };
+
+  const disabledByStatus = balance <= 0 || driverStatus !== "APPROVED";
+  const statusWarning = driverStatus !== "APPROVED"
+    ? "Profil Anda belum disetujui. Ketersediaan dinonaktifkan."
+    : balance <= 0
+    ? "Saldo tiket habis. Beli tiket untuk mengaktifkan status."
+    : null;
 
   useEffect(() => { fetchData(); }, []);
 
@@ -117,8 +132,12 @@ export default function DriverAvailability() {
 
   const handleSave = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (balance <= 0) {
-      setMsg("Saldo tiket habis. Silakan beli tiket untuk mengaktifkan status.");
+    if (disabledByStatus) {
+      if (driverStatus !== "APPROVED") {
+        setMsg("Profil Anda belum disetujui. Tidak bisa mengubah ketersediaan.");
+      } else {
+        setMsg("Saldo tiket habis. Silakan beli tiket untuk mengaktifkan status.");
+      }
       return;
     }
     try {
@@ -174,9 +193,9 @@ export default function DriverAvailability() {
               <p className="text-xs text-gray-400">Diperbarui: {new Date(data.updatedAt).toLocaleString()}</p>
             )}
           </div>
-          <Button size="sm" onClick={openModal} className="flex items-center gap-2" disabled={balance <= 0}>
+          <Button size="sm" onClick={openModal} className="flex items-center gap-2" disabled={disabledByStatus}>
             <PenBoxIcon size={16} />
-            {balance <= 0 ? "Beli tiket untuk aktif" : "Update Ketersediaan"}
+            {disabledByStatus ? "Tidak bisa ubah" : "Update Ketersediaan"}
           </Button>
         </div>
 
@@ -204,9 +223,9 @@ export default function DriverAvailability() {
           </div>
 
           <div className="space-y-2">
-            {balance <= 0 && (
+            {statusWarning && (
               <div className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
-                Saldo tiket habis. Beli tiket untuk mengaktifkan status.
+                {statusWarning}
               </div>
             )}
             <p className="mb-1 text-xs leading-normal text-gray-500 dark:text-gray-400">Lokasi Anda di Google Maps</p>
@@ -253,7 +272,7 @@ export default function DriverAvailability() {
                   onChange={(checked) => setStatus(checked ? "ACTIVE" : "INACTIVE")}
                   color="blue"
                   key={`switch-${status}`}
-                  disabled={balance <= 0}
+                  disabled={disabledByStatus}
                 />
                 {status === "ACTIVE" ? (
                   <Badge variant="light" color="success">Aktif</Badge>
@@ -290,7 +309,7 @@ export default function DriverAvailability() {
 
             <div className="lg:col-span-2 flex items-center gap-3 justify-end pt-2">
               <Button size="sm" variant="outline" onClick={closeModal} type="button">Tutup</Button>
-              <Button size="sm" type="submit" disabled={loading || balance <= 0}>{loading ? "Menyimpan..." : "Simpan"}</Button>
+              <Button size="sm" type="submit" disabled={loading || disabledByStatus}>{loading ? "Menyimpan..." : "Simpan"}</Button>
             </div>
           </form>
           {msg && <div className="text-sm text-amber-600 dark:text-amber-400">{msg}</div>}

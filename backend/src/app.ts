@@ -26,6 +26,7 @@ import driverAvailabilityRoute from "@/routes/driver/availability";
 import driverTicketsRoute from "@/routes/driver/tickets";
 import webhookMidtrans from "@/routes/webhook/midtrans";
 import storeProfileRoute from "@/routes/store/profile";
+import statsRoute from "@/routes/stats";
 
 const app = express();
 
@@ -89,6 +90,7 @@ app.use("/store/profile", requireAuth, storeProfileRoute);
 app.use("/driver/profile", requireAuth, driverProfileRoute);
 app.use("/driver/availability", requireAuth, driverAvailabilityRoute);
 app.use("/driver/tickets", requireAuth, driverTicketsRoute);
+app.use("/stats", statsRoute);
 
 app.use("/customer/profile", customerProfileRoute);
 

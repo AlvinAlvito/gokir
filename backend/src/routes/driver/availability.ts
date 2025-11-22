@@ -20,6 +20,10 @@ const patchSchema = z.object({
 // GET /driver/availability
 router.get("/", requireRole(["DRIVER"]), async (req, res) => {
   const user = (req as any).user!;
+  const driver = await prisma.driverProfile.findUnique({
+    where: { userId: user.id },
+    select: { status: true },
+  });
   let availability = await prisma.driverAvailability.findUnique({
     where: { userId: user.id },
   });
@@ -30,12 +34,19 @@ router.get("/", requireRole(["DRIVER"]), async (req, res) => {
     });
   }
 
-  return res.json({ ok: true, data: { availability } });
+  return res.json({ ok: true, data: { availability, driverStatus: driver?.status ?? "PENDING" } });
 });
 
 // PATCH /driver/availability
 router.patch("/", requireRole(["DRIVER"]), async (req, res) => {
   const user = (req as any).user!;
+  const driver = await prisma.driverProfile.findUnique({
+    where: { userId: user.id },
+    select: { status: true },
+  });
+  if (driver?.status !== "APPROVED") {
+    return res.status(403).json({ ok: false, error: { message: "Profil driver belum disetujui. Tidak bisa mengubah ketersediaan." } });
+  }
   const parsed = patchSchema.safeParse(req.body);
   if (!parsed.success) {
     const detail = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");

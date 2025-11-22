@@ -26,7 +26,25 @@ router.get("/", requireAuth, requireRole(["ADMIN","SUPERADMIN"]), async (req, re
         status: true,
         createdAt: true,
         user: {
-          select: { id: true, username: true, email: true, phone: true, role: true },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            phone: true,
+            role: true,
+            ticketBalance: { select: { balance: true } },
+            driverAvailability: {
+              select: {
+                status: true,
+                region: true,
+                locationUrl: true,
+                latitude: true,
+                longitude: true,
+                note: true,
+                updatedAt: true,
+              },
+            },
+          },
         },
         reviewedBy: {
           select: { id: true, username: true, email: true },
@@ -78,6 +96,15 @@ router.post("/:id/reject", requireAuth, requireRole(["ADMIN","SUPERADMIN"]), asy
         reviewedBy: { select: { id: true, username: true } },
       },
     });
+    // Nonaktifkan ketersediaan jika ada
+    const profile = await prisma.driverProfile.findUnique({ where: { id }, select: { userId: true } });
+    if (profile?.userId) {
+      await prisma.driverAvailability.upsert({
+        where: { userId: profile.userId },
+        update: { status: "INACTIVE", note: "Dinonaktifkan karena profil ditolak" },
+        create: { userId: profile.userId, status: "INACTIVE", note: "Dinonaktifkan karena profil ditolak" },
+      });
+    }
     return res.json(ok(dp));
   } catch {
     return res.status(404).json(fail("Not found"));
@@ -92,7 +119,27 @@ router.get("/:id", requireAuth, requireRole(["ADMIN","SUPERADMIN"]), async (req,
         id: true, name: true, nim: true, whatsapp: true, address: true,
         birthPlace: true, birthDate: true, idCardUrl: true, studentCardUrl: true,
         facePhotoUrl: true, status: true, createdAt: true,
-        user: { select: { id: true, username: true, email: true, phone: true, role: true } },
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            phone: true,
+            role: true,
+            ticketBalance: { select: { balance: true } },
+            driverAvailability: {
+              select: {
+                status: true,
+                region: true,
+                locationUrl: true,
+                latitude: true,
+                longitude: true,
+                note: true,
+                updatedAt: true,
+              },
+            },
+          },
+        },
         reviewedBy: { select: { id: true, username: true, email: true } },
       },
     });
