@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
@@ -28,13 +28,8 @@ type Order = {
   createdAt: string;
   customer?: { id: string; username?: string | null; email?: string | null; phone?: string | null } | null;
   driver?: { id: string; username?: string | null; email?: string | null; phone?: string | null; driverProfile?: { facePhotoUrl?: string | null } | null } | null;
-  store?: {
-    id: string;
-    storeProfile?: { storeName?: string | null; photoUrl?: string | null; address?: string | null } | null;
-  } | null;
+  store?: { id: string; storeProfile?: { storeName?: string | null; photoUrl?: string | null; address?: string | null } | null } | null;
   menuItem?: { id: string; name: string; price?: number | null; promoPrice?: number | null } | null;
-  customStoreName?: string | null;
-  customStoreAddress?: string | null;
   pickupAddress?: string | null;
   dropoffAddress?: string | null;
 };
@@ -67,12 +62,39 @@ const typeLabel: Record<OrderType, string> = {
   RIDE: "Antar jemput",
 };
 
+const stepItems: { key: Status; label: string; desc: string }[] = [
+  { key: "WAITING_STORE_CONFIRM", label: "Menunggu konfirmasi toko", desc: "Menunggu toko menerima pesanan." },
+  { key: "CONFIRMED_COOKING", label: "Diproses toko", desc: "Pesanan kamu sedang dibuat oleh toko." },
+  { key: "SEARCHING_DRIVER", label: "Mencari driver", desc: "Pesanan selesai dibuat, sedang mencari driver." },
+  { key: "DRIVER_ASSIGNED", label: "Driver ditemukan", desc: "Driver sudah ditemukan dan menjemput pesanan kamu." },
+  { key: "ON_DELIVERY", label: "Sedang diantar", desc: "Pesanan sedang diantar ke lokasi tujuan kamu." },
+  { key: "COMPLETED", label: "Selesai", desc: "Pesanan sudah selesai diantarkan." },
+];
+
 const currency = (v?: number | null) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v ?? 0);
 const formatDate = (v: string) => new Date(v).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
 const toAbs = (rel?: string | null) => {
   if (!rel) return "/images/user/owner.jpg";
   if (/^https?:\/\//i.test(rel)) return rel;
   return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
+};
+
+const parseNote = (note?: string | null) => {
+  const proofsPickup: string[] = [];
+  const proofsDelivery: string[] = [];
+  let mapLink: string | null = null;
+  if (note) {
+    const pickupR = /PickupProof:\s*(\S+)/gi;
+    const deliveryR = /DeliveryProof:\s*(\S+)/gi;
+    const mapR = /(https?:\/\/\S+)/gi;
+    let m;
+    while ((m = pickupR.exec(note))) proofsPickup.push(m[1]);
+    while ((m = deliveryR.exec(note))) proofsDelivery.push(m[1]);
+    const map = mapR.exec(note);
+    if (map) mapLink = map[1];
+  }
+  const cleaned = note ? note.replace(/(PickupProof|DeliveryProof):\s*\S+/gi, "").trim() : "";
+  return { noteText: cleaned, proofsPickup, proofsDelivery, mapLink };
 };
 
 const waLink = (phone?: string | null) => {
@@ -107,8 +129,8 @@ export default function CustomerOrderProsesPage() {
 
   useEffect(() => { fetchOrder(); }, [id]);
 
-  const mapLink = order?.note?.match(/https?:\/\/\S+/)?.[0] || null;
-  const noteText = order?.note?.replace(/Maps?:\s*https?:\/\/\S+/i, "").trim() || "";
+  const { noteText, proofsPickup, proofsDelivery, mapLink } = parseNote(order?.note);
+  const currentStepIndex = useMemo(() => order ? stepItems.findIndex((s) => s.key === order.status) : -1, [order]);
 
   return (
     <>
@@ -129,6 +151,24 @@ export default function CustomerOrderProsesPage() {
               {order.paymentMethod && <p className="text-xs text-gray-500">Metode: {order.paymentMethod}</p>}
             </div>
             <Badge color={statusBadge[order.status]}>{statusLabel[order.status]}</Badge>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Progress</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+              {stepItems.map((s, idx) => {
+                const active = currentStepIndex >= idx && currentStepIndex !== -1;
+                return (
+                  <div
+                    key={s.key}
+                    className={`rounded-xl border p-3 text-sm ${active ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10" : "border-gray-200 dark:border-gray-800"}`}
+                  >
+                    <p className={`font-semibold ${active ? "text-emerald-700 dark:text-emerald-300" : "text-gray-800 dark:text-white/90"}`}>{s.label}</p>
+                    <p className="text-xs text-gray-500 whitespace-pre-line">{s.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {order.store && (
@@ -154,6 +194,16 @@ export default function CustomerOrderProsesPage() {
             )}
 
             <div className="space-y-1">
+              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Catatan</p>
+              <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteText || "-"}</p>
+              {mapLink && (
+                <Button size="sm" variant="outline" asChild>
+                  <a href={mapLink} target="_blank" rel="noreferrer">Buka lokasi di Google Maps</a>
+                </Button>
+              )}
+            </div>
+
+            <div className="space-y-1">
               <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Customer (Anda)</p>
               <p>{order.customer?.username || "Tanpa nama"}</p>
               {order.customer?.phone && <p className="text-xs text-gray-500">{order.customer.phone}</p>}
@@ -169,7 +219,7 @@ export default function CustomerOrderProsesPage() {
                     <p className="font-semibold text-gray-800 dark:text-white/90">{order.driver.username || "Driver"}</p>
                     {order.driver.phone && (
                       <a className="text-xs text-brand-500 hover:underline" href={waLink(order.driver.phone) || "#"} target="_blank" rel="noreferrer">
-                        Chat WhatsApp
+                        {order.driver.phone}
                       </a>
                     )}
                     {order.driver.email && <p className="text-xs text-gray-500">{order.driver.email}</p>}
@@ -185,20 +235,32 @@ export default function CustomerOrderProsesPage() {
               </div>
             )}
             {order.dropoffAddress && (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Lokasi Pengantaran</p>
                 <p>{order.dropoffAddress}</p>
-              </div>
-            )}
-
-            {order.note && (
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Catatan</p>
-                {noteText && <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteText}</p>}
-                {mapLink && (
-                  <Button size="sm" variant="outline" asChild>
-                    <a href={mapLink} target="_blank" rel="noreferrer">Buka lokasi di Google Maps</a>
-                  </Button>
+                {proofsPickup.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-500">Bukti pengambilan</p>
+                    <div className="flex flex-wrap gap-3">
+                      {proofsPickup.map((p) => (
+                        <a key={p} href={toAbs(p)} target="_blank" rel="noreferrer">
+                          <img src={toAbs(p)} alt="Bukti pengambilan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {proofsDelivery.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-500">Bukti penerimaan</p>
+                    <div className="flex flex-wrap gap-3">
+                      {proofsDelivery.map((p) => (
+                        <a key={p} href={toAbs(p)} target="_blank" rel="noreferrer">
+                          <img src={toAbs(p)} alt="Bukti penerimaan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             )}

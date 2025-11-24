@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
+import Input from "../../components/form/input/InputField";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -75,12 +76,25 @@ const toAbs = (rel?: string | null) => {
   return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
 };
 
+const parseNote = (note?: string | null) => {
+  const proofs: string[] = [];
+  if (note) {
+    const regex = /(PickupProof|DeliveryProof):\s*(\S+)/gi;
+    let m;
+    while ((m = regex.exec(note))) proofs.push(m[2]);
+  }
+  const cleaned = note ? note.replace(/(PickupProof|DeliveryProof):\s*\S+/gi, "").trim() : "";
+  return { noteText: cleaned, proofs };
+};
+
 export default function DriverOrderProsesPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [proof, setProof] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const fetchOrder = async () => {
     const endpoint = id ? `/driver/orders/${id}` : "/driver/orders/active";
@@ -99,6 +113,60 @@ export default function DriverOrderProsesPage() {
   };
 
   useEffect(() => { fetchOrder(); }, [id]);
+
+  const { noteText, proofs } = parseNote(order?.note);
+
+  const submitPickupProof = async () => {
+    if (!order?.id || !proof) {
+      setError("Bukti pengambilan wajib diupload.");
+      return;
+    }
+    try {
+      setUploading(true);
+      setError(null);
+      const fd = new FormData();
+      fd.append("proof", proof);
+      const r = await fetch(`${API_URL}/driver/orders/${order.id}/pickup`, {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal mengirim bukti");
+      setOrder(j.data.order || order);
+      setProof(null);
+    } catch (e: any) {
+      setError(e.message || "Terjadi kesalahan");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const submitDeliveryProof = async () => {
+    if (!order?.id || !proof) {
+      setError("Bukti serah terima wajib diupload.");
+      return;
+    }
+    try {
+      setUploading(true);
+      setError(null);
+      const fd = new FormData();
+      fd.append("proof", proof);
+      const r = await fetch(`${API_URL}/driver/orders/${order.id}/complete`, {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal menyelesaikan order");
+      setOrder(j.data.order || order);
+      setProof(null);
+    } catch (e: any) {
+      setError(e.message || "Terjadi kesalahan");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const waLink = (phone?: string | null) => {
     if (!phone) return null;
@@ -174,13 +242,78 @@ export default function DriverOrderProsesPage() {
               </div>
             )}
 
-            {order.note && (
-              <div className="space-y-1">
+            {(noteText || (proofs && proofs.length)) && (
+              <div className="space-y-2">
                 <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Catatan</p>
-                <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{order.note}</p>
+                {noteText && <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteText}</p>}
+                {proofs && proofs.length > 0 && (
+                  <div className="flex flex-wrap gap-3">
+                    {proofs.map((p) => (
+                      <a key={p} href={toAbs(p)} target="_blank" rel="noreferrer">
+                        <img
+                          src={toAbs(p)}
+                          alt="Bukti"
+                          className="w-24 h-24 object-cover rounded-lg border border-gray-200 dark:border-gray-800"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
+
+          {order.status === "DRIVER_ASSIGNED" && (
+            <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5">
+              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Bukti pengambilan</p>
+              <Input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.gif,image/*"
+                onChange={(e: any) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return setProof(null);
+                  if (!file.type.startsWith("image/")) {
+                    setError("Hanya file gambar (jpg, jpeg, png, webp, gif) yang diizinkan.");
+                    setProof(null);
+                    return;
+                  }
+                  setError(null);
+                  setProof(file);
+                }}
+              />
+              <div className="flex items-center gap-3">
+                <Button size="sm" onClick={submitPickupProof} disabled={uploading || !proof}>
+                  {uploading ? "Mengirim..." : "Kirim & antar pesanan"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {order.status === "ON_DELIVERY" && (
+            <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5">
+              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Bukti serah terima</p>
+              <Input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.gif,image/*"
+                onChange={(e: any) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return setProof(null);
+                  if (!file.type.startsWith("image/")) {
+                    setError("Hanya file gambar (jpg, jpeg, png, webp, gif) yang diizinkan.");
+                    setProof(null);
+                    return;
+                  }
+                  setError(null);
+                  setProof(file);
+                }}
+              />
+              <div className="flex items-center gap-3">
+                <Button size="sm" onClick={submitDeliveryProof} disabled={uploading || !proof}>
+                  {uploading ? "Mengirim..." : "Selesaikan order"}
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <Button size="sm" variant="outline" onClick={() => navigate(-1)}>Kembali</Button>
