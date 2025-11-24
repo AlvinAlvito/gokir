@@ -29,6 +29,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/customer" },
     { icon: <UserCircleIcon />, name: "Profil", path: "/profile/customer" },
     { icon: <ListIcon />, name: "Pesan Makanan", path: "/orders/food" },
+    { icon: <TableIcon />, name: "Keranjang", path: "/cart" },
     { icon: <TableIcon />, name: "Orderan Kamu", path: "/orders" },
     { icon: <ListIcon />, name: "Antar Penumpang", path: "/orders/ride" },
     {
@@ -53,6 +54,8 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <UserCircleIcon />, name: "Profil", path: "/profile/driver" },
     { icon: <PageIcon />, name: "Ketersediaan", path: "/driver/availability" },
     { icon: <PageIcon />, name: "Tiket", path: "/driver/tickets" },
+    { icon: <ListIcon />, name: "List Order", path: "/driver/list-order" },
+    { icon: <TableIcon />, name: "Order Proses", path: "/driver/order-proses" },
     {
       icon: <PageIcon />,
       name: "Status & Dokumen",

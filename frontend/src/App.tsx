@@ -30,6 +30,7 @@ import CustomerProfil from "./pages/Customer/Profil";
 import OrdersFood from "./pages/Customer/OrdersFood";
 import StoreDetail from "./pages/Customer/StoreDetail";
 import CustomerOrdersPage from "./pages/Customer/Orders";
+import CustomerCartPage from "./pages/Customer/Cart";
 
 // Store
 import StoreProfil from "./pages/Store/Profile";
@@ -43,6 +44,9 @@ import DriverTickets from "./pages/Driver/Tickets";
 import StoreAvailability from "./pages/Store/Availability";
 import StoreTickets from "./pages/Store/Tickets";
 import StoreMenuPage from "./pages/Store/Menu";
+import StoreOrdersPage from "./pages/Store/Orders";
+import DriverListOrderPage from "./pages/Driver/ListOrder";
+import DriverOrderProsesPage from "./pages/Driver/OrderProses";
 
 // Dashboards (buat halaman placeholder kalau belum ada)
 import NotFound from "./pages/OtherPage/NotFound";
@@ -95,6 +99,7 @@ export default function App() {
               <Route path="/orders/food" element={<OrdersFood />} />
               <Route path="/orders/food/:id" element={<StoreDetail />} />
               <Route path="/orders" element={<CustomerOrdersPage />} />
+              <Route path="/cart" element={<CustomerCartPage />} />
 
               {/* Store routes */}
               <Route path="/dashboard/store" element={<StoreDashboard />} />
@@ -102,12 +107,16 @@ export default function App() {
               <Route path="/store/availability" element={<StoreAvailability />} />
               <Route path="/store/tickets" element={<StoreTickets />} />
               <Route path="/store/menu" element={<StoreMenuPage />} />
+              <Route path="/pesanan/store" element={<StoreOrdersPage />} />
 
               {/* Driver routes */}
               <Route path="/dashboard/driver" element={<DriverDashboard />} />
               <Route path="/profile/driver" element={<DriverProfil />} />
               <Route path="/driver/availability" element={<DriverAvailability />} />
               <Route path="/driver/tickets" element={<DriverTickets />} />
+              <Route path="/driver/list-order" element={<DriverListOrderPage />} />
+              <Route path="/driver/order-proses" element={<DriverOrderProsesPage />} />
+              <Route path="/driver/order-proses/:id" element={<DriverOrderProsesPage />} />
 
               {/* Superadmin */}
               <Route path="/driver/superadmin" element={<AdminDriver />} />
