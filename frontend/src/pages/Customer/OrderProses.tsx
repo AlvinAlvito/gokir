@@ -45,7 +45,7 @@ const statusLabel: Record<Status, string> = {
   CANCELLED: "Dibatalkan",
 };
 
-const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "success" | "gray"> = {
+const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "success"> = {
   WAITING_STORE_CONFIRM: "warning",
   REJECTED: "error",
   CONFIRMED_COOKING: "primary",
@@ -53,7 +53,7 @@ const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "su
   DRIVER_ASSIGNED: "info",
   ON_DELIVERY: "success",
   COMPLETED: "success",
-  CANCELLED: "gray",
+  CANCELLED: "error",
 };
 
 const typeLabel: Record<OrderType, string> = {
@@ -63,12 +63,12 @@ const typeLabel: Record<OrderType, string> = {
 };
 
 const stepItems: { key: Status; label: string; desc: string }[] = [
-  { key: "WAITING_STORE_CONFIRM", label: "Menunggu konfirmasi toko", desc: "Menunggu toko menerima pesanan." },
+  { key: "WAITING_STORE_CONFIRM", label: "Menunggu konfirmasi toko", desc: "Pesanan menunggu disetujui oleh toko." },
   { key: "CONFIRMED_COOKING", label: "Diproses toko", desc: "Pesanan kamu sedang dibuat oleh toko." },
-  { key: "SEARCHING_DRIVER", label: "Mencari driver", desc: "Pesanan selesai dibuat, sedang mencari driver." },
+  { key: "SEARCHING_DRIVER", label: "Mencari driver", desc: "Pesanan sudah selesai dibuat, sedang mencari driver." },
   { key: "DRIVER_ASSIGNED", label: "Driver ditemukan", desc: "Driver sudah ditemukan dan menjemput pesanan kamu." },
-  { key: "ON_DELIVERY", label: "Sedang diantar", desc: "Pesanan sedang diantar ke lokasi tujuan kamu." },
-  { key: "COMPLETED", label: "Selesai", desc: "Pesanan sudah selesai diantarkan." },
+  { key: "ON_DELIVERY", label: "Sedang diantar", desc: "Pesanan sedang diantar ke lokasi tujuan kamu, pastikan alamat benar." },
+  { key: "COMPLETED", label: "Selesai", desc: "Pesanan kamu sudah selesai diantarkan." },
 ];
 
 const currency = (v?: number | null) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v ?? 0);
@@ -82,19 +82,18 @@ const toAbs = (rel?: string | null) => {
 const parseNote = (note?: string | null) => {
   const proofsPickup: string[] = [];
   const proofsDelivery: string[] = [];
-  let mapLink: string | null = null;
+  let cleaned = note || "";
   if (note) {
     const pickupR = /PickupProof:\s*(\S+)/gi;
     const deliveryR = /DeliveryProof:\s*(\S+)/gi;
-    const mapR = /(https?:\/\/\S+)/gi;
     let m;
     while ((m = pickupR.exec(note))) proofsPickup.push(m[1]);
     while ((m = deliveryR.exec(note))) proofsDelivery.push(m[1]);
-    const map = mapR.exec(note);
-    if (map) mapLink = map[1];
+    cleaned = cleaned.replace(/(PickupProof|DeliveryProof):\s*\S+/gi, "");
+    cleaned = cleaned.replace(/https?:\/\/\S+/gi, "");
+    cleaned = cleaned.trim();
   }
-  const cleaned = note ? note.replace(/(PickupProof|DeliveryProof):\s*\S+/gi, "").trim() : "";
-  return { noteText: cleaned, proofsPickup, proofsDelivery, mapLink };
+  return { noteText: cleaned, proofsPickup, proofsDelivery };
 };
 
 const waLink = (phone?: string | null) => {
@@ -129,8 +128,16 @@ export default function CustomerOrderProsesPage() {
 
   useEffect(() => { fetchOrder(); }, [id]);
 
-  const { noteText, proofsPickup, proofsDelivery, mapLink } = parseNote(order?.note);
+  const { noteText, proofsPickup, proofsDelivery } = parseNote(order?.note);
   const currentStepIndex = useMemo(() => order ? stepItems.findIndex((s) => s.key === order.status) : -1, [order]);
+
+  const stepDescOverride: Partial<Record<Status, string>> = {
+    CONFIRMED_COOKING: "Pesanan kamu sedang dibuat oleh toko yaa",
+    SEARCHING_DRIVER: "Pesanan kamu sudah selesai, dan sedang mencari driver untuk mengantar pesanan kamu.",
+    DRIVER_ASSIGNED: "Driver sudah ditemukan dan sedang menjemput pesanan kamu",
+    ON_DELIVERY: "Pesanan sedang diantar ke lokasi tujuan anda, pastikan alamat anda benar yaa",
+    COMPLETED: "Pesanan kamu sudah selesai diantarkan",
+  };
 
   return (
     <>
@@ -153,117 +160,99 @@ export default function CustomerOrderProsesPage() {
             <Badge color={statusBadge[order.status]}>{statusLabel[order.status]}</Badge>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Progress</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
-              {stepItems.map((s, idx) => {
-                const active = currentStepIndex >= idx && currentStepIndex !== -1;
-                return (
-                  <div
-                    key={s.key}
-                    className={`rounded-xl border p-3 text-sm ${active ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10" : "border-gray-200 dark:border-gray-800"}`}
-                  >
-                    <p className={`font-semibold ${active ? "text-emerald-700 dark:text-emerald-300" : "text-gray-800 dark:text-white/90"}`}>{s.label}</p>
-                    <p className="text-xs text-gray-500 whitespace-pre-line">{s.desc}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <div className="space-y-3">
+            {stepItems.map((s, idx) => {
+              const active = currentStepIndex >= idx && currentStepIndex !== -1;
+              const desc = stepDescOverride[s.key] || s.desc;
 
-          {order.store && (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Toko</p>
-              <div className="flex items-center gap-3">
-                <img src={toAbs(order.store.storeProfile?.photoUrl)} className="w-12 h-12 rounded-lg object-cover border border-gray-200 dark:border-gray-800" />
-                <div>
-                  <p className="font-semibold text-gray-800 dark:text-white/90">{order.store.storeProfile?.storeName || "Toko"}</p>
-                  <p className="text-xs text-gray-500">{order.store.storeProfile?.address || "Alamat tidak tersedia"}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2 text-sm text-gray-700 dark:text-white/90">
-            {order.menuItem && (
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Menu</p>
-                <p>{order.menuItem.name} × {order.quantity ?? 1}</p>
-                <p className="text-xs text-gray-500">Perkiraan: {currency((order.menuItem.promoPrice ?? order.menuItem.price ?? 0) * (order.quantity ?? 1))}</p>
-              </div>
-            )}
-
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Catatan</p>
-              <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteText || "-"}</p>
-              {mapLink && (
-                <Button size="sm" variant="outline" asChild>
-                  <a href={mapLink} target="_blank" rel="noreferrer">Buka lokasi di Google Maps</a>
-                </Button>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Customer (Anda)</p>
-              <p>{order.customer?.username || "Tanpa nama"}</p>
-              {order.customer?.phone && <p className="text-xs text-gray-500">{order.customer.phone}</p>}
-              {order.customer?.email && <p className="text-xs text-gray-500">{order.customer.email}</p>}
-            </div>
-
-            {order.driver && (
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Driver</p>
-                <div className="flex items-center gap-3">
-                  <img src={toAbs(order.driver.driverProfile?.facePhotoUrl)} className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-800" />
-                  <div>
-                    <p className="font-semibold text-gray-800 dark:text-white/90">{order.driver.username || "Driver"}</p>
-                    {order.driver.phone && (
-                      <a className="text-xs text-brand-500 hover:underline" href={waLink(order.driver.phone) || "#"} target="_blank" rel="noreferrer">
-                        {order.driver.phone}
-                      </a>
-                    )}
-                    {order.driver.email && <p className="text-xs text-gray-500">{order.driver.email}</p>}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {order.pickupAddress && (
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Lokasi Pickup</p>
-                <p>{order.pickupAddress}</p>
-              </div>
-            )}
-            {order.dropoffAddress && (
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Lokasi Pengantaran</p>
-                <p>{order.dropoffAddress}</p>
-                {proofsPickup.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-500">Bukti pengambilan</p>
-                    <div className="flex flex-wrap gap-3">
-                      {proofsPickup.map((p) => (
-                        <a key={p} href={toAbs(p)} target="_blank" rel="noreferrer">
-                          <img src={toAbs(p)} alt="Bukti pengambilan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
-                        </a>
-                      ))}
+              return (
+                <div
+                  key={s.key}
+                  className={`rounded-xl border p-4 text-sm space-y-2 ${active ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10" : "border-gray-200 dark:border-gray-800"}`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className={`font-semibold ${active ? "text-emerald-700 dark:text-emerald-300" : "text-gray-800 dark:text-white/90"}`}>{s.label}</p>
+                      <p className="text-xs text-gray-500 whitespace-pre-line">{desc}</p>
                     </div>
                   </div>
-                )}
-                {proofsDelivery.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-500">Bukti penerimaan</p>
-                    <div className="flex flex-wrap gap-3">
-                      {proofsDelivery.map((p) => (
-                        <a key={p} href={toAbs(p)} target="_blank" rel="noreferrer">
-                          <img src={toAbs(p)} alt="Bukti penerimaan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
-                        </a>
-                      ))}
+
+                  {s.key === "WAITING_STORE_CONFIRM" && (
+                    <div className="space-y-3 text-gray-700 dark:text-white/90">
+                      {order.store && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold">Detail Toko</p>
+                          <p className="font-semibold text-gray-800 dark:text-white/90">{order.store.storeProfile?.storeName || "Toko"}</p>
+                          <p className="text-xs text-gray-500">{order.store.storeProfile?.address || "Alamat tidak tersedia"}</p>
+                        </div>
+                      )}
+                      {order.menuItem && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold">Detail Menu</p>
+                          <p>{order.menuItem.name} x {order.quantity ?? 1}</p>
+                          <p className="text-xs text-gray-500">Perkiraan: {currency((order.menuItem.promoPrice ?? order.menuItem.price ?? 0) * (order.quantity ?? 1))}</p>
+                          <p className="text-xs text-gray-500">Catatan: {noteText || "-"}</p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+
+                  {s.key === "DRIVER_ASSIGNED" && order.driver && (
+                    <div className="space-y-2 text-gray-700 dark:text-white/90">
+                      <p className="text-sm font-semibold">Detail Driver</p>
+                      <div className="flex items-center gap-3">
+                        <img src={toAbs(order.driver.driverProfile?.facePhotoUrl)} className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-800" />
+                        <div>
+                          <p className="font-semibold text-gray-800 dark:text-white/90">{order.driver.username || "Driver"}</p>
+                          {order.driver.phone && (
+                            <a className="text-xs text-brand-500 hover:underline" href={waLink(order.driver.phone) || "#"} target="_blank" rel="noreferrer">
+                              {order.driver.phone}
+                            </a>
+                          )}
+                          {order.driver.email && <p className="text-xs text-gray-500">{order.driver.email}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {s.key === "ON_DELIVERY" && (
+                    <div className="space-y-2 text-gray-700 dark:text-white/90">
+                      {order.dropoffAddress && (
+                        <div>
+                          <p className="text-sm font-semibold">Lokasi Pengantaran</p>
+                          <p>{order.dropoffAddress}</p>
+                        </div>
+                      )}
+                      {proofsPickup.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-500">Bukti pengambilan</p>
+                          <div className="flex flex-wrap gap-3">
+                            {proofsPickup.map((p) => (
+                              <a key={p} href={toAbs(p)} target="_blank" rel="noreferrer">
+                                <img src={toAbs(p)} alt="Bukti pengambilan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {s.key === "COMPLETED" && proofsDelivery.length > 0 && (
+                    <div className="space-y-1 text-gray-700 dark:text-white/90">
+                      <p className="text-xs text-gray-500">Bukti penerimaan</p>
+                      <div className="flex flex-wrap gap-3">
+                        {proofsDelivery.map((p) => (
+                          <a key={p} href={toAbs(p)} target="_blank" rel="noreferrer">
+                            <img src={toAbs(p)} alt="Bukti penerimaan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <div className="flex items-center gap-3">
