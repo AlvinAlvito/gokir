@@ -22,12 +22,15 @@ import adminTickets from "@/routes/admin/tickets";
 import adminStores from "@/routes/admin/stores";
 import announcementsRoute from "@/routes/announcements";
 import customerProfileRoute from "@/routes/customer/profile";
+import customerStoresRoute from "@/routes/customer/stores";
+import customerOrdersRoute from "@/routes/customer/orders";
 import driverProfileRoute from "@/routes/driver/profile"; 
 import driverAvailabilityRoute from "@/routes/driver/availability";
 import driverTicketsRoute from "@/routes/driver/tickets";
 import storeAvailabilityRoute from "@/routes/store/availability";
 import storeTicketsRoute from "@/routes/store/tickets";
 import storeMenuRoute from "@/routes/store/menu";
+import storeOrdersRoute from "@/routes/store/orders";
 import webhookMidtrans from "@/routes/webhook/midtrans";
 import storeProfileRoute from "@/routes/store/profile";
 import statsRoute from "@/routes/stats";
@@ -98,9 +101,12 @@ app.use("/driver/tickets", requireAuth, driverTicketsRoute);
 app.use("/store/availability", requireAuth, storeAvailabilityRoute);
 app.use("/store/tickets", requireAuth, storeTicketsRoute);
 app.use("/store/menu", requireAuth, storeMenuRoute);
+app.use("/store/orders", requireAuth, storeOrdersRoute);
 app.use("/stats", statsRoute);
 
 app.use("/customer/profile", customerProfileRoute);
+app.use("/customer/stores", requireAuth, customerStoresRoute);
+app.use("/customer/orders", requireAuth, customerOrdersRoute);
 
 // 404 JSON fallback
 app.use((req, res) => {

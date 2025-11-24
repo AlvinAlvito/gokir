@@ -5,7 +5,6 @@ import Label from "../form/Label";
 import Select from "../form/Select";
 import { Modal } from "../ui/modal";
 import Badge from "../ui/badge/Badge";
-import { PenBoxIcon } from "lucide-react";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 const toAbs = (rel?: string | null) => {
@@ -58,7 +57,6 @@ export default function MenuManager() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [catModal, setCatModal] = useState<{ mode: "add" | "edit"; data: Partial<Category> }>({ mode: "add", data: {} });
   const [itemModal, setItemModal] = useState<{ mode: "add" | "edit"; data: Partial<Item> }>({ mode: "add", data: {} });
   const [catOpen, setCatOpen] = useState(false);
@@ -165,43 +163,6 @@ const deleteItem = async (id: string) => {
   fetchAll();
 };
 
-  // Option group
-  const addOptionGroup = async (itemId: string, payload: Partial<OptionGroup>) => {
-    const r = await fetch(`${API_URL}/store/menu/items/${itemId}/option-groups`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: payload.name,
-        type: payload.type || "SINGLE",
-        isRequired: payload.isRequired ?? false,
-        minSelect: payload.minSelect ?? 0,
-        maxSelect: payload.maxSelect ?? 1,
-        sortOrder: payload.sortOrder ?? 0,
-      }),
-    });
-    const j = await r.json();
-    if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal tambah group");
-    fetchAll();
-  };
-
-  const addOption = async (groupId: string, payload: Partial<Option>) => {
-    const r = await fetch(`${API_URL}/store/menu/option-groups/${groupId}/options`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: payload.name,
-        priceDelta: payload.priceDelta ?? 0,
-        isAvailable: payload.isAvailable ?? true,
-        sortOrder: payload.sortOrder ?? 0,
-      }),
-    });
-    const j = await r.json();
-    if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal tambah opsi");
-    fetchAll();
-  };
-
   return (
     <div className="space-y-6">
       <div className="p-5 rounded-3xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] lg:p-6">
@@ -255,8 +216,8 @@ const deleteItem = async (id: string) => {
                       No Img
                     </div>
                   )}
-                  <p className="font-semibold text-gray-800 dark:text-white/90">{it.name}</p>
                   <div>
+                    <p className="font-semibold text-gray-800 dark:text-white/90">{it.name}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">{it.description || "—"}</p>
                     <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Rp{it.price}</p>
                     {it.promoPrice ? <p className="text-xs text-emerald-500">Promo: Rp{it.promoPrice}</p> : null}
@@ -267,48 +228,10 @@ const deleteItem = async (id: string) => {
                     {it.isAvailable ? "Tersedia" : "Tidak"}
                   </Badge>
                     <div className="flex gap-2 text-xs">
-                    <button onClick={() => { setItemModal({ mode: "edit", data: it }); setItemOpen(true); setSelectedItem(it); }} className="text-brand-500">Edit</button>
+                    <button onClick={() => { setItemModal({ mode: "edit", data: it }); setItemOpen(true); }} className="text-brand-500">Edit</button>
                     <button onClick={() => deleteItem(it.id)} className="text-rose-500">Hapus</button>
                   </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-white/90">
-                  <PenBoxIcon size={14} /> Opsi
-                  <button
-                    className="text-xs text-brand-500"
-                    onClick={() => {
-                      setSelectedItem(it);
-                      addOptionGroup(it.id, { name: "Group Baru" }).catch((err) => setMsg(err.message));
-                    }}
-                  >
-                    + Group
-                  </button>
-                </div>
-                {it.optionGroups.length === 0 ? (
-                  <p className="text-xs text-gray-500">Belum ada opsi.</p>
-                ) : it.optionGroups.map((g) => (
-                  <div key={g.id} className="rounded-lg border border-gray-200 dark:border-gray-800 p-2">
-                    <div className="flex items-center justify-between text-sm font-semibold text-gray-800 dark:text-white/90">
-                      <span>{g.name} ({g.type === "SINGLE" ? "Pilih satu" : "Multi"})</span>
-                      <button
-                        className="text-xs text-brand-500"
-                        onClick={() => addOption(g.id, { name: "Opsi Baru" }).catch((err) => setMsg(err.message))}
-                      >
-                        + Opsi
-                      </button>
-                    </div>
-                    <div className="mt-1 space-y-1">
-                      {g.options.length === 0 ? (
-                        <p className="text-xs text-gray-500">Belum ada opsi.</p>
-                      ) : g.options.map((o) => (
-                        <div key={o.id} className="flex items-center justify-between text-xs text-gray-700 dark:text-gray-300">
-                          <span>{o.name} (Rp{o.priceDelta >=0 ? "+" : ""}{o.priceDelta})</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           ))}

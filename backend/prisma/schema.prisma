@@ -41,6 +41,9 @@ model User {
   storeProfile       StoreProfile?
   menuCategories     MenuCategory[]
   menuItems          MenuItem[]
+  customerOrders     CustomerOrder[] @relation("CustomerOrders")
+  storeOrders        CustomerOrder[] @relation("StoreOrders")
+  driverOrders       CustomerOrder[] @relation("DriverOrders")
   auditLogs          AuditLog[]
 
   reviewedDrivers DriverProfile[] @relation("ReviewedBy")
@@ -134,6 +137,7 @@ enum TicketOrderStatus {
 
 enum PaymentMethod {
   QRIS
+  CASH
 }
 
 model DriverProfile {
@@ -232,6 +236,7 @@ model MenuItem {
   updatedAt   DateTime @updatedAt
 
   optionGroups MenuOptionGroup[]
+  orders       CustomerOrder[]
 
   @@index([storeId, categoryId, sortOrder])
 }
@@ -266,6 +271,50 @@ model MenuOption {
   updatedAt   DateTime @updatedAt
 
   @@index([groupId, sortOrder])
+}
+
+enum CustomerOrderStatus {
+  WAITING_STORE_CONFIRM
+  REJECTED
+  CONFIRMED_COOKING
+  SEARCHING_DRIVER
+  DRIVER_ASSIGNED
+  ON_DELIVERY
+  COMPLETED
+  CANCELLED
+}
+
+enum CustomerOrderType {
+  FOOD_EXISTING_STORE
+  FOOD_CUSTOM_STORE
+  RIDE
+}
+
+model CustomerOrder {
+  id             String   @id @default(cuid())
+  customerId     String
+  storeId        String?
+  menuItemId     String?
+  driverId       String?
+  quantity       Int?
+  note           String?
+  paymentMethod  PaymentMethod @default(CASH)
+  status         CustomerOrderStatus @default(WAITING_STORE_CONFIRM)
+  orderType      CustomerOrderType @default(FOOD_EXISTING_STORE)
+  customStoreName    String?
+  customStoreAddress String?
+  pickupAddress      String?
+  dropoffAddress     String?
+  createdAt      DateTime @default(now())
+
+  customer       User      @relation("CustomerOrders", fields: [customerId], references: [id])
+  store          User?     @relation("StoreOrders", fields: [storeId], references: [id])
+  driver         User?     @relation("DriverOrders", fields: [driverId], references: [id])
+  menuItem       MenuItem? @relation(fields: [menuItemId], references: [id])
+
+  @@index([customerId, createdAt])
+  @@index([storeId])
+  @@index([driverId])
 }
 
 model TicketBalance {

@@ -29,6 +29,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/customer" },
     { icon: <UserCircleIcon />, name: "Profil", path: "/profile/customer" },
     { icon: <ListIcon />, name: "Pesan Makanan", path: "/orders/food" },
+    { icon: <TableIcon />, name: "Orderan Kamu", path: "/orders" },
     { icon: <ListIcon />, name: "Antar Penumpang", path: "/orders/ride" },
     {
       icon: <TableIcon />,

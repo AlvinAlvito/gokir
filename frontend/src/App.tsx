@@ -27,6 +27,9 @@ import AdminTickets from "./components/admin/Tickets";
 // Customer
 import CustomerDashboard from "./pages/Customer/Dashboard";
 import CustomerProfil from "./pages/Customer/Profil";
+import OrdersFood from "./pages/Customer/OrdersFood";
+import StoreDetail from "./pages/Customer/StoreDetail";
+import CustomerOrdersPage from "./pages/Customer/Orders";
 
 // Store
 import StoreProfil from "./pages/Store/Profile";
@@ -89,6 +92,9 @@ export default function App() {
               {/* Customer routes */}
               <Route path="/dashboard/customer" element={<CustomerDashboard />} />
               <Route path="/profile/customer" element={<CustomerProfil />} />
+              <Route path="/orders/food" element={<OrdersFood />} />
+              <Route path="/orders/food/:id" element={<StoreDetail />} />
+              <Route path="/orders" element={<CustomerOrdersPage />} />
 
               {/* Store routes */}
               <Route path="/dashboard/store" element={<StoreDashboard />} />
