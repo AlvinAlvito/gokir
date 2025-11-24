@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { Router } from "express";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
@@ -132,9 +131,41 @@ router.get("/", async (req: any, res) => {
       dropoffAddress: true,
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       store: { select: { id: true, storeProfile: { select: { id: true, storeName: true } } } },
+      driver: { select: { id: true, username: true, email: true, phone: true, driverProfile: { select: { facePhotoUrl: true } } } },
     },
   });
   return res.json({ ok: true, data: { orders } });
+});
+
+// GET /customer/orders/active -> order aktif (belum selesai/dibatalkan) terbaru
+router.get("/active", async (req: any, res) => {
+  const user = req.user!;
+  const order = await prisma.customerOrder.findFirst({
+    where: {
+      customerId: user.id,
+      status: { notIn: ["COMPLETED", "CANCELLED"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      paymentMethod: true,
+      quantity: true,
+      note: true,
+      createdAt: true,
+      orderType: true,
+      customStoreName: true,
+      customStoreAddress: true,
+      pickupAddress: true,
+      dropoffAddress: true,
+      menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
+      store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, photoUrl: true, address: true } } } },
+      driver: { select: { id: true, username: true, email: true, phone: true, driverProfile: { select: { facePhotoUrl: true } } } },
+    },
+  });
+
+  if (!order) return res.status(404).json({ ok: false, error: { message: "Tidak ada order aktif" } });
+  return res.json({ ok: true, data: { order } });
 });
 
 export default router;

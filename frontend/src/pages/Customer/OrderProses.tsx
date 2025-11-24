@@ -27,10 +27,10 @@ type Order = {
   note?: string | null;
   createdAt: string;
   customer?: { id: string; username?: string | null; email?: string | null; phone?: string | null } | null;
+  driver?: { id: string; username?: string | null; email?: string | null; phone?: string | null; driverProfile?: { facePhotoUrl?: string | null } | null } | null;
   store?: {
     id: string;
     storeProfile?: { storeName?: string | null; photoUrl?: string | null; address?: string | null } | null;
-    storeAvailability?: { region?: string | null } | null;
   } | null;
   menuItem?: { id: string; name: string; price?: number | null; promoPrice?: number | null } | null;
   customStoreName?: string | null;
@@ -44,7 +44,7 @@ const statusLabel: Record<Status, string> = {
   REJECTED: "Ditolak",
   CONFIRMED_COOKING: "Diproses toko",
   SEARCHING_DRIVER: "Mencari driver",
-  DRIVER_ASSIGNED: "Sudah diambil",
+  DRIVER_ASSIGNED: "Driver ditemukan",
   ON_DELIVERY: "Sedang diantar",
   COMPLETED: "Selesai",
   CANCELLED: "Dibatalkan",
@@ -55,8 +55,8 @@ const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "su
   REJECTED: "error",
   CONFIRMED_COOKING: "primary",
   SEARCHING_DRIVER: "info",
-  DRIVER_ASSIGNED: "success",
-  ON_DELIVERY: "info",
+  DRIVER_ASSIGNED: "info",
+  ON_DELIVERY: "success",
   COMPLETED: "success",
   CANCELLED: "gray",
 };
@@ -75,7 +75,14 @@ const toAbs = (rel?: string | null) => {
   return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
 };
 
-export default function DriverOrderProsesPage() {
+const waLink = (phone?: string | null) => {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  const normalized = digits.startsWith("62") ? digits : `62${digits.replace(/^0/, "")}`;
+  return `https://wa.me/${normalized}`;
+};
+
+export default function CustomerOrderProsesPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
@@ -83,7 +90,7 @@ export default function DriverOrderProsesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchOrder = async () => {
-    const endpoint = id ? `/driver/orders/${id}` : "/driver/orders/active";
+    const endpoint = id ? `/customer/orders/${id}` : "/customer/orders/active";
     try {
       setLoading(true);
       setError(null);
@@ -100,21 +107,17 @@ export default function DriverOrderProsesPage() {
 
   useEffect(() => { fetchOrder(); }, [id]);
 
-  const waLink = (phone?: string | null) => {
-    if (!phone) return null;
-    const digits = phone.replace(/\D/g, "");
-    const normalized = digits.startsWith("62") ? digits : `62${digits.replace(/^0/, "")}`;
-    return `https://wa.me/${normalized}`;
-  };
+  const mapLink = order?.note?.match(/https?:\/\/\S+/)?.[0] || null;
+  const noteText = order?.note?.replace(/Maps?:\s*https?:\/\/\S+/i, "").trim() || "";
 
   return (
     <>
-      <PageMeta title="Order Proses" description="Detail order yang sedang Anda tangani" />
+      <PageMeta title="Order Aktif" description="Detail order yang sedang diproses" />
       {error && <div className="text-sm text-amber-600 dark:text-amber-400">{error}</div>}
       {loading && <p className="text-sm text-gray-500">Memuat...</p>}
       {!loading && !order && (
         <p className="text-sm text-gray-500">
-          {error ? "" : "Order tidak ditemukan atau tidak ada order aktif."}
+          {error ? "" : "Order tidak ditemukan atau belum ada order aktif."}
         </p>
       )}
       {order && (
@@ -151,33 +154,52 @@ export default function DriverOrderProsesPage() {
             )}
 
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Customer</p>
+              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Customer (Anda)</p>
               <p>{order.customer?.username || "Tanpa nama"}</p>
-              {order.customer?.phone && (
-                <a className="text-xs text-brand-500 hover:underline" href={waLink(order.customer.phone) || "#"} target="_blank" rel="noreferrer">
-                  Chat WhatsApp
-                </a>
-              )}
+              {order.customer?.phone && <p className="text-xs text-gray-500">{order.customer.phone}</p>}
               {order.customer?.email && <p className="text-xs text-gray-500">{order.customer.email}</p>}
             </div>
 
+            {order.driver && (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Driver</p>
+                <div className="flex items-center gap-3">
+                  <img src={toAbs(order.driver.driverProfile?.facePhotoUrl)} className="w-12 h-12 rounded-full object-cover border border-gray-200 dark:border-gray-800" />
+                  <div>
+                    <p className="font-semibold text-gray-800 dark:text-white/90">{order.driver.username || "Driver"}</p>
+                    {order.driver.phone && (
+                      <a className="text-xs text-brand-500 hover:underline" href={waLink(order.driver.phone) || "#"} target="_blank" rel="noreferrer">
+                        Chat WhatsApp
+                      </a>
+                    )}
+                    {order.driver.email && <p className="text-xs text-gray-500">{order.driver.email}</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {order.pickupAddress && (
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Pickup</p>
+                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Lokasi Pickup</p>
                 <p>{order.pickupAddress}</p>
               </div>
             )}
             {order.dropoffAddress && (
               <div className="space-y-1">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Drop-off</p>
+                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Lokasi Pengantaran</p>
                 <p>{order.dropoffAddress}</p>
               </div>
             )}
 
             {order.note && (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Catatan</p>
-                <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{order.note}</p>
+                {noteText && <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteText}</p>}
+                {mapLink && (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={mapLink} target="_blank" rel="noreferrer">Buka lokasi di Google Maps</a>
+                  </Button>
+                )}
               </div>
             )}
           </div>

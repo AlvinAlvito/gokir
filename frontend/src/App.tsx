@@ -31,6 +31,7 @@ import OrdersFood from "./pages/Customer/OrdersFood";
 import StoreDetail from "./pages/Customer/StoreDetail";
 import CustomerOrdersPage from "./pages/Customer/Orders";
 import CustomerCartPage from "./pages/Customer/Cart";
+import CustomerOrderProsesPage from "./pages/Customer/OrderProses";
 
 // Store
 import StoreProfil from "./pages/Store/Profile";
@@ -99,6 +100,7 @@ export default function App() {
               <Route path="/orders/food" element={<OrdersFood />} />
               <Route path="/orders/food/:id" element={<StoreDetail />} />
               <Route path="/orders" element={<CustomerOrdersPage />} />
+              <Route path="/orders/active" element={<CustomerOrderProsesPage />} />
               <Route path="/cart" element={<CustomerCartPage />} />
 
               {/* Store routes */}
