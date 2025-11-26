@@ -24,6 +24,7 @@ import SuperAdminAnnouncements from "./pages/Admin/Announcements";
 import AdminTickets from "./components/admin/Tickets";
 import SupportReportsPage from "./pages/Admin/SupportReports";
 import TransactionsMonitorPage from "./pages/Admin/TransactionsMonitor";
+import UsersManagePage from "./pages/Admin/UsersManage";
 
 
 // Customer
@@ -99,6 +100,7 @@ export default function App() {
               <Route path="/superadmin/announcements" element={<SuperAdminAnnouncements />} />
               <Route path="/superadmin/reports" element={<SupportReportsPage />} />
               <Route path="/superadmin/transactions" element={<TransactionsMonitorPage />} />
+              <Route path="/superadmin/users" element={<UsersManagePage />} />
 
               {/* Customer routes */}
               <Route path="/dashboard/customer" element={<CustomerDashboard />} />

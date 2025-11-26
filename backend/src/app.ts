@@ -22,6 +22,7 @@ import adminTickets from "@/routes/admin/tickets";
 import adminStores from "@/routes/admin/stores";
 import superAdminReports from "@/routes/superadmin/reports";
 import superAdminOrders from "@/routes/superadmin/orders";
+import superAdminUsers from "@/routes/superadmin/users";
 import announcementsRoute from "@/routes/announcements";
 import customerProfileRoute from "@/routes/customer/profile";
 import customerStoresRoute from "@/routes/customer/stores";
@@ -97,6 +98,7 @@ app.use("/admin/announcements", adminAnnouncements);
 app.use("/admin/tickets", adminTickets);
 app.use("/superadmin/reports", superAdminReports);
 app.use("/superadmin/orders", superAdminOrders);
+app.use("/superadmin/users", superAdminUsers);
 app.use("/announcements", announcementsRoute);
 
 app.use("/store/profile", requireAuth, storeProfileRoute);

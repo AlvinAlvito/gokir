@@ -33,11 +33,6 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/orders" },
     { icon: <TableIcon />, name: "Order Proses", path: "/orders/active" },
     { icon: <ListIcon />, name: "Antar Penumpang", path: "/orders/ride" },
-    {
-      icon: <TableIcon />,
-      name: "Riwayat",
-      subItems: [{ name: "Semua Riwayat", path: "/history" }],
-    },
 
   ],
  STORE: [
@@ -48,8 +43,6 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <ListIcon />, name: "Menu", path: "/store/menu" },
     { icon: <TableIcon />, name: "Pesanan", path: "/pesanan/store" },
     { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/store/orders" },
-     { icon: <TableIcon />, name: "Riwayat", path: "/riwayat/store" },
-    { icon: <CalenderIcon />, name: "Jam Operasional", path: "s/chedule/store" },
   ],
   DRIVER: [
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/driver" },
@@ -77,18 +70,13 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
 
   SUPERADMIN: [
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/superadmin" },
-    {
-      icon: <ListIcon />,
-      name: "Verifikasi",
-      subItems: [{ name: "Driver", path: "/superadmin/driver" }, { name: "Toko", path: "/superadmin/toko" }],
-    },
     { icon: <PageIcon />, name: "Announcements", path: "/superadmin/announcements" },
     { icon: <PageIcon />, name: "Tiket", path: "/superadmin/tickets" },
     { icon: <GridIcon />, name: "Driver", path: "/driver/superadmin" },
     { icon: <GridIcon />, name: "Toko", path: "/toko/superadmin" },
     { icon: <TableIcon />, name: "Laporan Support", path: "/superadmin/reports" },
     { icon: <TableIcon />, name: "Monitoring Transaksi", path: "/superadmin/transactions" },
-    { icon: <PlugInIcon />, name: "System Config", path: "/admin/system" },
+    { icon: <TableIcon />, name: "Manajemen Pengguna", path: "/superadmin/users" },
   ],
 };
 
