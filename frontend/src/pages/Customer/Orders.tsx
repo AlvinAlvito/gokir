@@ -57,10 +57,14 @@ const toProof = (path?: string | null) => {
 const parseNote = (note?: string | null) => {
   const proofsPickup: string[] = [];
   const proofsDelivery: string[] = [];
+  let rejectReason: string | null = null;
   let cleaned = note || "";
   if (note) {
     const pickupR = /PickupProof:\s*([^\n,;]+)/gi;
     const deliveryR = /DeliveryProof:\s*([^\n,;]+)/gi;
+    const rejectR = /RejectReason:\s*([^\n]+)/i;
+    const rejM = note.match(rejectR);
+    if (rejM) rejectReason = rejM[1].trim();
     let m;
     while ((m = pickupR.exec(note))) {
       const target = m[1]?.trim().replace(/,+$/, "");
@@ -70,9 +74,13 @@ const parseNote = (note?: string | null) => {
       const target = m[1]?.trim().replace(/,+$/, "");
       if (target) proofsDelivery.push(target);
     }
-    cleaned = cleaned.replace(/PickupProof:[^\n]*/gi, "").replace(/DeliveryProof:[^\n]*/gi, "").trim();
+    cleaned = cleaned
+      .replace(/PickupProof:[^\n]*/gi, "")
+      .replace(/DeliveryProof:[^\n]*/gi, "")
+      .replace(/RejectReason:[^\n]*/gi, "")
+      .trim();
   }
-  return { noteText: cleaned, proofsPickup, proofsDelivery };
+  return { noteText: cleaned, proofsPickup, proofsDelivery, rejectReason };
 };
 
 const badgeColor = (status: OrderStatus) => {
@@ -182,7 +190,7 @@ export default function CustomerOrdersPage() {
 
 type OrderCardProps = { order: Order };
 const OrderCard = ({ order }: OrderCardProps) => {
-  const { noteText, proofsPickup, proofsDelivery } = parseNote(order.note);
+  const { noteText, proofsPickup, proofsDelivery, rejectReason } = parseNote(order.note);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportCategory, setReportCategory] = useState("driver");
   const [reportDetail, setReportDetail] = useState("");
@@ -240,6 +248,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
           {order.quantity ? <p className="text-sm text-gray-800 dark:text-white/90">Qty: {order.quantity}</p> : null}
           <p className="text-sm text-gray-800 dark:text-white/90">Pembayaran: {order.paymentMethod === "QRIS" ? "QRIS" : "Cash"}</p>
           {noteText && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {noteText}</p>}
+          {rejectReason && <p className="text-xs text-red-500 dark:text-red-400">Alasan ditolak: {rejectReason}</p>}
         </div>
         <div className="flex flex-col items-end gap-2">
           <Badge size="sm" color={badgeColor(order.status)}>{statusLabel(order.status)}</Badge>

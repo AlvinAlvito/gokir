@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+ï»¿import { useEffect, useMemo, useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
+import { Modal } from "../../components/ui/modal";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -73,6 +74,8 @@ export default function StoreOrdersPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [rejectModal, setRejectModal] = useState<{ id: string | null; reason: string }>({ id: null, reason: "" });
+  const [ticketWarning, setTicketWarning] = useState(false);
 
   const fetchOrders = async () => {
     try {
@@ -94,20 +97,30 @@ export default function StoreOrdersPage() {
   const waitingOrders = useMemo(() => orders.filter(o => o.status === "WAITING_STORE_CONFIRM"), [orders]);
   const otherOrders = useMemo(() => orders.filter(o => o.status !== "WAITING_STORE_CONFIRM"), [orders]);
 
-  const updateStatus = async (id: string, status: Status) => {
+  const updateStatus = async (id: string, status: Status, reason?: string) => {
     try {
       setUpdatingId(id);
+      const body: any = { status };
+      if (status === "REJECTED" && reason) body.reason = reason;
       const r = await fetch(`${API_URL}/store/orders/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(body),
       });
       const j = await r.json();
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal mengubah status");
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+      if (status === "REJECTED") {
+        setOrders(prev => prev.filter(o => o.id !== id));
+      } else {
+        setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+      }
     } catch (e: any) {
-      setError(e.message || "Gagal memperbarui status");
+      const msg = e.message || "Gagal memperbarui status";
+      setError(msg);
+      if (msg.toLowerCase().includes("tiket tidak mencukupi")) {
+        setTicketWarning(true);
+      }
     } finally {
       setUpdatingId(null);
     }
@@ -136,7 +149,7 @@ export default function StoreOrdersPage() {
           {o.menuItem && (
             <div>
               <p className="font-semibold">Menu</p>
-              <p>{o.menuItem.name} × {o.quantity ?? 1}</p>
+              <p>{o.menuItem.name} x {o.quantity ?? 1}</p>
               <p className="text-xs text-gray-500">Total: {currency(total)}</p>
             </div>
           )}
@@ -172,7 +185,7 @@ export default function StoreOrdersPage() {
 
         {o.status === "WAITING_STORE_CONFIRM" && (
           <div className="flex items-center gap-3">
-            <Button size="sm" variant="outline" onClick={() => updateStatus(o.id, "REJECTED")} disabled={!!updatingId}>
+            <Button size="sm" variant="outline" onClick={() => setRejectModal({ id: o.id, reason: "" })} disabled={!!updatingId}>
               Tolak
             </Button>
             <Button size="sm" onClick={() => updateStatus(o.id, "CONFIRMED_COOKING")} disabled={!!updatingId}>
@@ -235,6 +248,52 @@ export default function StoreOrdersPage() {
           </div>
         )}
       </div>
+      <Modal isOpen={!!rejectModal.id} onClose={() => setRejectModal({ id: null, reason: "" })} className="max-w-md m-4">
+        <div className="p-5 space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Tolak pesanan</h3>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700 dark:text-white/80">Alasan penolakan</label>
+            <textarea
+              value={rejectModal.reason}
+              onChange={(e) => setRejectModal((p) => ({ ...p, reason: e.target.value }))}
+              placeholder="Contoh: stok habis"
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90"
+              rows={3}
+            />
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Apakah anda ingin menolak pesanan ini?</p>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" size="sm" onClick={() => setRejectModal({ id: null, reason: "" })}>Batal</Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                if (!rejectModal.id) return;
+                updateStatus(rejectModal.id, "REJECTED", rejectModal.reason || "Ditolak toko");
+                setRejectModal({ id: null, reason: "" });
+              }}
+              disabled={!!updatingId}
+            >
+              Iya, tolak
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={ticketWarning} onClose={() => setTicketWarning(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-4 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.485 0l6.518 11.59A2 2 0 0 1 16.518 17H3.482a2 2 0 0 1-1.742-3.311l6.517-11.59Z" clipRule="evenodd" />
+              <path d="M11 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
+              <path stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" d="M10 7v3" />
+            </svg>
+          </div>
+          <p className="text-sm text-gray-700 dark:text-gray-200">Tiket tidak mencukupi, silakan top up tiket terlebih dahulu agar bisa menerima orderan ini.</p>
+          <div className="flex justify-center">
+            <Button size="sm" onClick={() => setTicketWarning(false)}>Tutup</Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

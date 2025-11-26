@@ -452,6 +452,11 @@ router.get("/active", async (req: any, res) => {
 router.post("/:id/claim", async (req: any, res) => {
   const driverId = req.user.id as string;
 
+  const ticket = await prisma.ticketBalance.findUnique({ where: { userId: driverId }, select: { balance: true } });
+  if (!ticket || ticket.balance < 1) {
+    return res.status(400).json({ ok: false, error: { message: "Tiket tidak mencukupi, silakan top up tiket." } });
+  }
+
   const order = await prisma.customerOrder.findUnique({
     where: { id: req.params.id },
     select: {

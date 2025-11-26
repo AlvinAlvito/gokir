@@ -248,7 +248,7 @@ router.get("/active", async (req: any, res) => {
   const order = await prisma.customerOrder.findFirst({
     where: {
       customerId: user.id,
-      status: { notIn: ["COMPLETED", "CANCELLED"] },
+      status: { notIn: ["COMPLETED", "CANCELLED", "REJECTED"] },
     },
     orderBy: { createdAt: "desc" },
     select: {

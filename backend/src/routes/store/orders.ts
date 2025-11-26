@@ -76,7 +76,7 @@ router.get("/", async (req: any, res) => {
   const take = 3;
   const skip = (page - 1) * take;
   const orders = await prisma.customerOrder.findMany({
-    where: { storeId, status: { not: "COMPLETED" } },
+    where: { storeId, status: { notIn: ["COMPLETED", "REJECTED"] } },
     orderBy: { createdAt: "desc" },
     skip,
     take,
@@ -143,6 +143,7 @@ const statusSchema = z.object({
     "COMPLETED",
     "CANCELLED",
   ]),
+  reason: z.string().max(255).optional(),
 });
 
 // PATCH /store/orders/:id/status { status }
@@ -155,13 +156,26 @@ router.patch("/:id/status", async (req: any, res) => {
 
   const order = await prisma.customerOrder.findFirst({
     where: { id: req.params.id, storeId },
-    select: { id: true },
+    select: { id: true, note: true },
   });
   if (!order) return res.status(404).json({ ok: false, error: { message: "Order tidak ditemukan" } });
 
+  if (parsed.data.status !== "REJECTED") {
+    const ticket = await prisma.ticketBalance.findUnique({ where: { userId: storeId }, select: { balance: true } });
+    if (!ticket || ticket.balance < 1) {
+      return res.status(400).json({ ok: false, error: { message: "Tiket tidak mencukupi, silakan top up tiket." } });
+    }
+  }
+
+  let newNote = null as string | null;
+  if (parsed.data.status === "REJECTED") {
+    const reason = parsed.data.reason?.trim() || "Pesanan ditolak toko";
+    newNote = [order.note || "", `RejectReason: ${reason}`].filter(Boolean).join("\n");
+  }
+
   const updated = await prisma.customerOrder.update({
     where: { id: req.params.id },
-    data: { status: parsed.data.status },
+    data: { status: parsed.data.status, note: newNote ?? order.note },
     select: {
       id: true,
       status: true,
