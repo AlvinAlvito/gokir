@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 
@@ -32,6 +32,73 @@ type Order = {
   store?: { id: string; storeProfile?: { id: string; storeName?: string | null } | null } | null;
 };
 
+const toAbs = (rel?: string | null) => {
+  if (!rel) return "/images/user/owner.jpg";
+  if (/^https?:\/\//i.test(rel)) return rel;
+  return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
+};
+
+const toProof = (path?: string | null) => {
+  if (!path) return null;
+  const cleaned = path.trim();
+  if (!cleaned) return null;
+  const build = () => {
+    if (/^https?:\/\//i.test(cleaned)) return cleaned;
+    if (cleaned.startsWith("/")) return `${API_URL}${cleaned}`;
+    if (cleaned.includes("order-proofs/")) return `${API_URL}/${cleaned}`;
+    return `${API_URL}/uploads/order-proofs/${cleaned}`;
+  };
+  const url = build();
+  return url.replace(/ /g, "%20");
+};
+
+const parseNote = (note?: string | null) => {
+  const proofsPickup: string[] = [];
+  const proofsDelivery: string[] = [];
+  let cleaned = note || "";
+  if (note) {
+    const pickupR = /PickupProof:\s*([^\n,;]+)/gi;
+    const deliveryR = /DeliveryProof:\s*([^\n,;]+)/gi;
+    let m;
+    while ((m = pickupR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsPickup.push(target);
+    }
+    while ((m = deliveryR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsDelivery.push(target);
+    }
+    cleaned = cleaned.replace(/PickupProof:[^\n]*/gi, "").replace(/DeliveryProof:[^\n]*/gi, "").trim();
+  }
+  return { noteText: cleaned, proofsPickup, proofsDelivery };
+};
+
+const badgeColor = (status: OrderStatus) => {
+  if (["CONFIRMED_COOKING", "DRIVER_ASSIGNED", "ON_DELIVERY", "COMPLETED"].includes(status)) return "success";
+  if (["REJECTED", "CANCELLED"].includes(status)) return "error";
+  return "warning";
+};
+
+const statusLabel = (status: OrderStatus) => {
+  switch (status) {
+    case "WAITING_STORE_CONFIRM": return "Menunggu konfirmasi toko";
+    case "REJECTED": return "Orderan ditolak";
+    case "CONFIRMED_COOKING": return "Dikonfirmasi, sedang dibuat";
+    case "SEARCHING_DRIVER": return "Sedang mencari driver";
+    case "DRIVER_ASSIGNED": return "Driver ditemukan";
+    case "ON_DELIVERY": return "Sedang diantarkan";
+    case "COMPLETED": return "Selesai";
+    case "CANCELLED": return "Dibatalkan";
+    default: return status;
+  }
+};
+
+const typeLabel = (type: OrderType) => {
+  if (type === "FOOD_EXISTING_STORE") return "Pesan makanan (toko sistem)";
+  if (type === "FOOD_CUSTOM_STORE") return "Pesan makanan (toko luar)";
+  return "Antar jemput";
+};
+
 export default function CustomerOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,32 +120,6 @@ export default function CustomerOrdersPage() {
   };
 
   useEffect(() => { fetchOrders(); }, []);
-
-  const badgeColor = (status: OrderStatus) => {
-    if (["CONFIRMED_COOKING", "DRIVER_ASSIGNED", "ON_DELIVERY", "COMPLETED"].includes(status)) return "success";
-    if (["REJECTED", "CANCELLED"].includes(status)) return "error";
-    return "warning";
-  };
-
-  const statusLabel = (status: OrderStatus) => {
-    switch (status) {
-      case "WAITING_STORE_CONFIRM": return "Menunggu konfirmasi toko";
-      case "REJECTED": return "Orderan ditolak";
-      case "CONFIRMED_COOKING": return "Dikonfirmasi, sedang dibuat";
-      case "SEARCHING_DRIVER": return "Sedang mencari driver";
-      case "DRIVER_ASSIGNED": return "Driver ditemukan";
-      case "ON_DELIVERY": return "Sedang diantarkan";
-      case "COMPLETED": return "Selesai";
-      case "CANCELLED": return "Dibatalkan";
-      default: return status;
-    }
-  };
-
-  const typeLabel = (type: OrderType) => {
-    if (type === "FOOD_EXISTING_STORE") return "Pesan makanan (toko sistem)";
-    if (type === "FOOD_CUSTOM_STORE") return "Pesan makanan (toko luar)";
-    return "Antar jemput";
-  };
 
   return (
     <>
@@ -104,34 +145,7 @@ export default function CustomerOrdersPage() {
         ) : (
           <div className="space-y-3">
             {orders.map((o) => (
-              <div key={o.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">#{o.id.slice(0, 8)} • {new Date(o.createdAt).toLocaleString()}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 italic">{typeLabel(o.orderType)}</p>
-                    <p className="text-lg font-semibold text-gray-800 dark:text-white/90">{o.menuItem?.name || o.customStoreName || "Pesanan"}</p>
-                    {o.store?.storeProfile?.storeName && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Toko: {o.store.storeProfile.storeName}</p>
-                    )}
-                    {o.customStoreAddress && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Alamat toko: {o.customStoreAddress}</p>
-                    )}
-                    {o.pickupAddress && <p className="text-sm text-gray-500 dark:text-gray-400">Pickup: {o.pickupAddress}</p>}
-                    {o.dropoffAddress && <p className="text-sm text-gray-500 dark:text-gray-400">Tujuan: {o.dropoffAddress}</p>}
-                    {o.quantity ? <p className="text-sm text-gray-800 dark:text-white/90">Qty: {o.quantity}</p> : null}
-                    <p className="text-sm text-gray-800 dark:text-white/90">Pembayaran: {o.paymentMethod === "QRIS" ? "QRIS" : "Cash"}</p>
-                    {o.note && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {o.note}</p>}
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <Badge size="sm" color={badgeColor(o.status)}>{statusLabel(o.status)}</Badge>
-                    {o.menuItem ? (
-                      <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
-                        Rp{o.menuItem.promoPrice ?? o.menuItem.price}{o.quantity ? ` x ${o.quantity} = Rp${(o.menuItem.promoPrice ?? o.menuItem.price) * o.quantity}` : ""}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
+              <OrderCard key={o.id} order={o} />
             ))}
           </div>
         )}
@@ -139,3 +153,74 @@ export default function CustomerOrdersPage() {
     </>
   );
 }
+
+type OrderCardProps = { order: Order };
+const OrderCard = ({ order }: OrderCardProps) => {
+  const { noteText, proofsPickup, proofsDelivery } = parseNote(order.note);
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400">#{order.id.slice(0, 8)} • {new Date(order.createdAt).toLocaleString()}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 italic">{typeLabel(order.orderType)}</p>
+          <p className="text-lg font-semibold text-gray-800 dark:text-white/90">{order.menuItem?.name || order.customStoreName || "Pesanan"}</p>
+          {order.store?.storeProfile?.storeName && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">Toko: {order.store.storeProfile.storeName}</p>
+          )}
+          {order.customStoreAddress && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">Alamat toko: {order.customStoreAddress}</p>
+          )}
+          {order.pickupAddress && <p className="text-sm text-gray-500 dark:text-gray-400">Pickup: {order.pickupAddress}</p>}
+          {order.dropoffAddress && <p className="text-sm text-gray-500 dark:text-gray-400">Tujuan: {order.dropoffAddress}</p>}
+          {order.quantity ? <p className="text-sm text-gray-800 dark:text-white/90">Qty: {order.quantity}</p> : null}
+          <p className="text-sm text-gray-800 dark:text-white/90">Pembayaran: {order.paymentMethod === "QRIS" ? "QRIS" : "Cash"}</p>
+          {noteText && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {noteText}</p>}
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <Badge size="sm" color={badgeColor(order.status)}>{statusLabel(order.status)}</Badge>
+          {order.menuItem ? (
+            <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+              Rp{order.menuItem.promoPrice ?? order.menuItem.price}{order.quantity ? ` x ${order.quantity} = Rp${(order.menuItem.promoPrice ?? order.menuItem.price) * order.quantity}` : ""}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      {(proofsPickup.length > 0 || proofsDelivery.length > 0) && (
+        <div className="mt-3 space-y-2">
+          {proofsPickup.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Bukti pengambilan</p>
+              <div className="flex flex-wrap gap-3">
+                {proofsPickup.map((p) => {
+                  const src = toProof(p);
+                  return src ? (
+                    <a key={src} href={src} target="_blank" rel="noreferrer">
+                      <img src={src} alt="Bukti pengambilan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                    </a>
+                  ) : null;
+                })}
+              </div>
+            </div>
+          )}
+          {proofsDelivery.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Bukti serah terima</p>
+              <div className="flex flex-wrap gap-3">
+                {proofsDelivery.map((p) => {
+                  const src = toProof(p);
+                  return src ? (
+                    <a key={src} href={src} target="_blank" rel="noreferrer">
+                      <img src={src} alt="Bukti serah terima" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                    </a>
+                  ) : null;
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

@@ -297,7 +297,7 @@ model CustomerOrder {
   menuItemId     String?
   driverId       String?
   quantity       Int?
-  note           String?
+  note           String?  @db.Text
   paymentMethod  PaymentMethod @default(CASH)
   status         CustomerOrderStatus @default(WAITING_STORE_CONFIRM)
   orderType      CustomerOrderType @default(FOOD_EXISTING_STORE)

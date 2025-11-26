@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+ï»¿import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
@@ -51,7 +51,7 @@ const statusLabel: Record<Status, string> = {
   CANCELLED: "Dibatalkan",
 };
 
-const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "success" | "gray"> = {
+const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "success"> = {
   WAITING_STORE_CONFIRM: "warning",
   REJECTED: "error",
   CONFIRMED_COOKING: "primary",
@@ -59,7 +59,7 @@ const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "su
   DRIVER_ASSIGNED: "success",
   ON_DELIVERY: "info",
   COMPLETED: "success",
-  CANCELLED: "gray",
+  CANCELLED: "error",
 };
 
 const typeLabel: Record<OrderType, string> = {
@@ -75,16 +75,46 @@ const toAbs = (rel?: string | null) => {
   if (/^https?:\/\//i.test(rel)) return rel;
   return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
 };
+const toProof = (path?: string | null) => {
+  if (!path) return null;
+  const cleaned = path.trim();
+  if (!cleaned) return null;
+  const build = () => {
+    if (/^https?:\/\//i.test(cleaned)) return cleaned;
+    if (cleaned.startsWith("/")) return `${API_URL}${cleaned}`;
+    if (cleaned.includes("order-proofs/")) return `${API_URL}/${cleaned}`;
+    return `${API_URL}/uploads/order-proofs/${cleaned}`;
+  };
+  const url = build();
+  return url.replace(/ /g, "%20");
+};
 
 const parseNote = (note?: string | null) => {
-  const proofs: string[] = [];
+  const proofsPickup: string[] = [];
+  const proofsDelivery: string[] = [];
+  let cleaned = note || "";
   if (note) {
-    const regex = /(PickupProof|DeliveryProof):\s*(\S+)/gi;
+    const pickupR = /PickupProof:\s*([^\n,;]+)/gi;
+    const deliveryR = /DeliveryProof:\s*([^\n,;]+)/gi;
     let m;
-    while ((m = regex.exec(note))) proofs.push(m[2]);
+    while ((m = pickupR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsPickup.push(target);
+    }
+    while ((m = deliveryR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsDelivery.push(target);
+    }
+    cleaned = cleaned.replace(/PickupProof:[^\n]*/gi, "").replace(/DeliveryProof:[^\n]*/gi, "").trim();
   }
-  const cleaned = note ? note.replace(/(PickupProof|DeliveryProof):\s*\S+/gi, "").trim() : "";
-  return { noteText: cleaned, proofs };
+  return { noteText: cleaned, proofsPickup, proofsDelivery };
+};
+
+const waLink = (phone?: string | null) => {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  const normalized = digits.startsWith("62") ? digits : `62${digits.replace(/^0/, "")}`;
+  return `https://wa.me/${normalized}`;
 };
 
 export default function DriverOrderProsesPage() {
@@ -114,7 +144,7 @@ export default function DriverOrderProsesPage() {
 
   useEffect(() => { fetchOrder(); }, [id]);
 
-  const { noteText, proofs } = parseNote(order?.note);
+  const { noteText, proofsPickup, proofsDelivery } = parseNote(order?.note);
 
   const submitPickupProof = async () => {
     if (!order?.id || !proof) {
@@ -168,13 +198,6 @@ export default function DriverOrderProsesPage() {
     }
   };
 
-  const waLink = (phone?: string | null) => {
-    if (!phone) return null;
-    const digits = phone.replace(/\D/g, "");
-    const normalized = digits.startsWith("62") ? digits : `62${digits.replace(/^0/, "")}`;
-    return `https://wa.me/${normalized}`;
-  };
-
   return (
     <>
       <PageMeta title="Order Proses" description="Detail order yang sedang Anda tangani" />
@@ -213,7 +236,7 @@ export default function DriverOrderProsesPage() {
             {order.menuItem && (
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Menu</p>
-                <p>{order.menuItem.name} × {order.quantity ?? 1}</p>
+                <p>{order.menuItem.name} x {order.quantity ?? 1}</p>
                 <p className="text-xs text-gray-500">Perkiraan: {currency((order.menuItem.promoPrice ?? order.menuItem.price ?? 0) * (order.quantity ?? 1))}</p>
               </div>
             )}
@@ -236,31 +259,49 @@ export default function DriverOrderProsesPage() {
               </div>
             )}
             {order.dropoffAddress && (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Drop-off</p>
                 <p>{order.dropoffAddress}</p>
+                {proofsPickup.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-500">Bukti pengambilan</p>
+                    <div className="flex flex-wrap gap-3">
+                      {proofsPickup.map((p) => {
+                    const src = toProof(p);
+                    return src ? (
+                      <a key={src} href={src} target="_blank" rel="noreferrer">
+                        <img src={src} alt="Bukti pengambilan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                      </a>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+            )}
+
+            {noteText && (
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Catatan</p>
+                <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteText}</p>
               </div>
             )}
 
-            {(noteText || (proofs && proofs.length)) && (
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Catatan</p>
-                {noteText && <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteText}</p>}
-                {proofs && proofs.length > 0 && (
-                  <div className="flex flex-wrap gap-3">
-                    {proofs.map((p) => (
-                      <a key={p} href={toAbs(p)} target="_blank" rel="noreferrer">
-                        <img
-                          src={toAbs(p)}
-                          alt="Bukti"
-                          className="w-24 h-24 object-cover rounded-lg border border-gray-200 dark:border-gray-800"
-                        />
-                      </a>
-                    ))}
-                  </div>
-                )}
+            {proofsDelivery.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-gray-500">Bukti serah terima</p>
+                <div className="flex flex-wrap gap-3">
+                {proofsDelivery.map((p) => {
+                  const src = toProof(p);
+                  return src ? (
+                    <a key={src} href={src} target="_blank" rel="noreferrer">
+                      <img src={src} alt="Bukti serah terima" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                    </a>
+                  ) : null;
+                })}
               </div>
-            )}
+            </div>
+          )}
           </div>
 
           {order.status === "DRIVER_ASSIGNED" && (

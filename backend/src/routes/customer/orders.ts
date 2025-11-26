@@ -6,6 +6,40 @@ import { requireRole } from "@/lib/auth";
 const router = Router();
 router.use(requireRole(["CUSTOMER"]));
 
+const parseNote = (note?: string | null) => {
+  const proofsPickup: string[] = [];
+  const proofsDelivery: string[] = [];
+  let mapUrl: string | null = null;
+  let cleaned = note || "";
+  if (note) {
+    const mapR = /Maps:\s*(https?:\S+)/i;
+    const pickupR = /PickupProof:\s*([^\n,;]+)/gi;
+    const deliveryR = /DeliveryProof:\s*([^\n,;]+)/gi;
+    const mapM = note.match(mapR);
+    if (mapM) mapUrl = mapM[1];
+    let m;
+    while ((m = pickupR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsPickup.push(target);
+    }
+    while ((m = deliveryR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsDelivery.push(target);
+    }
+    cleaned = cleaned
+      .replace(/PickupProof:[^\n]*/gi, "")
+      .replace(/DeliveryProof:[^\n]*/gi, "")
+      .replace(/Maps:\s*https?:\S+/gi, "")
+      .trim();
+  }
+  return { noteText: cleaned, mapUrl, proofsPickup, proofsDelivery };
+};
+
+const withParsedNote = <T extends { note?: string | null }>(order: T) => ({
+  ...order,
+  ...parseNote(order.note),
+});
+
 const createSchema = z.object({
   orderType: z.enum(["FOOD_EXISTING_STORE", "FOOD_CUSTOM_STORE", "RIDE"]),
   storeProfileId: z.string().optional(),
@@ -108,7 +142,7 @@ router.post("/", async (req: any, res) => {
     },
   });
 
-  return res.status(201).json({ ok: true, data: { order } });
+  return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
 });
 
 // GET /customer/orders
@@ -134,7 +168,7 @@ router.get("/", async (req: any, res) => {
       driver: { select: { id: true, username: true, email: true, phone: true, driverProfile: { select: { facePhotoUrl: true } } } },
     },
   });
-  return res.json({ ok: true, data: { orders } });
+  return res.json({ ok: true, data: { orders: orders.map(withParsedNote) } });
 });
 
 // GET /customer/orders/active -> order aktif (belum selesai/dibatalkan) terbaru
@@ -165,7 +199,7 @@ router.get("/active", async (req: any, res) => {
   });
 
   if (!order) return res.status(404).json({ ok: false, error: { message: "Tidak ada order aktif" } });
-  return res.json({ ok: true, data: { order } });
+  return res.json({ ok: true, data: { order: withParsedNote(order) } });
 });
 
 export default router;

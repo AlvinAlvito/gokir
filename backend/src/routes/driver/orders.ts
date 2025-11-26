@@ -13,9 +13,15 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9-_]/g, "");
-    cb(null, `${base || "proof"}-${Date.now()}${ext}`);
+    const rawExt = path.extname(file.originalname);
+    const guessedExt =
+      rawExt ||
+      (file.mimetype === "image/jpeg" ? ".jpg" :
+      file.mimetype === "image/png" ? ".png" :
+      file.mimetype === "image/webp" ? ".webp" :
+      file.mimetype === "image/gif" ? ".gif" : "");
+    const base = path.basename(file.originalname, rawExt).replace(/[^a-zA-Z0-9-_]/g, "");
+    cb(null, `${base || "proof"}-${Date.now()}${guessedExt}`);
   },
 });
 const upload = multer({
@@ -27,6 +33,40 @@ const upload = multer({
     }
     cb(null, true);
   },
+});
+
+const parseNote = (note?: string | null) => {
+  const proofsPickup: string[] = [];
+  const proofsDelivery: string[] = [];
+  let mapUrl: string | null = null;
+  let cleaned = note || "";
+  if (note) {
+    const mapR = /Maps:\s*(https?:\S+)/i;
+    const pickupR = /PickupProof:\s*([^\n,;]+)/gi;
+    const deliveryR = /DeliveryProof:\s*([^\n,;]+)/gi;
+    const mapM = note.match(mapR);
+    if (mapM) mapUrl = mapM[1];
+    let m;
+    while ((m = pickupR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsPickup.push(target);
+    }
+    while ((m = deliveryR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsDelivery.push(target);
+    }
+    cleaned = cleaned
+      .replace(/PickupProof:[^\n]*/gi, "")
+      .replace(/DeliveryProof:[^\n]*/gi, "")
+      .replace(/Maps:\s*https?:\S+/gi, "")
+      .trim();
+  }
+  return { noteText: cleaned, mapUrl, proofsPickup, proofsDelivery };
+};
+
+const withParsedNote = <T extends { note?: string | null }>(order: T) => ({
+  ...order,
+  ...parseNote(order.note),
 });
 
 // GET /driver/orders/available
@@ -127,7 +167,7 @@ router.get("/active", async (req: any, res) => {
   });
 
   if (!order) return res.status(404).json({ ok: false, error: { message: "Tidak ada order aktif" } });
-  return res.json({ ok: true, data: { order } });
+  return res.json({ ok: true, data: { order: withParsedNote(order) } });
 });
 
 // POST /driver/orders/:id/pickup -> upload bukti dan ubah status jadi ON_DELIVERY
@@ -167,7 +207,7 @@ router.post("/:id/pickup", upload.single("proof"), async (req: any, res) => {
     },
   });
 
-  return res.json({ ok: true, data: { order: updated, proofUrl: proofPath } });
+  return res.json({ ok: true, data: { order: withParsedNote(updated), proofUrl: proofPath } });
 });
 
 // POST /driver/orders/:id/complete -> bukti serah terima dan ubah status jadi COMPLETED, kurangi tiket driver & store
@@ -225,7 +265,7 @@ router.post("/:id/complete", upload.single("proof"), async (req: any, res) => {
     return updatedOrder;
   });
 
-  return res.json({ ok: true, data: { order: updated, proofUrl: proofPath } });
+  return res.json({ ok: true, data: { order: withParsedNote(updated), proofUrl: proofPath } });
 });
 
 // GET /driver/orders/:id -> detail order milik driver ini (atau status searching)
@@ -264,7 +304,7 @@ router.get("/:id", async (req: any, res) => {
   });
 
   if (!order) return res.status(404).json({ ok: false, error: { message: "Order tidak ditemukan" } });
-  return res.json({ ok: true, data: { order } });
+  return res.json({ ok: true, data: { order: withParsedNote(order) } });
 });
 
 // GET /driver/orders/active -> ambil order aktif milik driver (status belum selesai/dibatalkan) terbaru

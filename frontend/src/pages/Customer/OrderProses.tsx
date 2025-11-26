@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
@@ -62,7 +62,8 @@ const typeLabel: Record<OrderType, string> = {
   RIDE: "Antar jemput",
 };
 
-const stepItems: { key: Status; label: string; desc: string }[] = [
+type StepItem = { key: Status; label: string; desc: string };
+const stepItems: StepItem[] = [
   { key: "WAITING_STORE_CONFIRM", label: "Menunggu konfirmasi toko", desc: "Pesanan menunggu disetujui oleh toko." },
   { key: "CONFIRMED_COOKING", label: "Diproses toko", desc: "Pesanan kamu sedang dibuat oleh toko." },
   { key: "SEARCHING_DRIVER", label: "Mencari driver", desc: "Pesanan sudah selesai dibuat, sedang mencari driver." },
@@ -78,20 +79,37 @@ const toAbs = (rel?: string | null) => {
   if (/^https?:\/\//i.test(rel)) return rel;
   return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
 };
+const toProof = (path?: string | null) => {
+  if (!path) return null;
+  const cleaned = path.trim();
+  if (!cleaned) return null;
+  const build = () => {
+    if (/^https?:\/\//i.test(cleaned)) return cleaned;
+    if (cleaned.startsWith("/")) return `${API_URL}${cleaned}`;
+    if (cleaned.includes("order-proofs/")) return `${API_URL}/${cleaned}`;
+    return `${API_URL}/uploads/order-proofs/${cleaned}`;
+  };
+  const url = build();
+  return url.replace(/ /g, "%20");
+};
 
 const parseNote = (note?: string | null) => {
   const proofsPickup: string[] = [];
   const proofsDelivery: string[] = [];
   let cleaned = note || "";
   if (note) {
-    const pickupR = /PickupProof:\s*(\S+)/gi;
-    const deliveryR = /DeliveryProof:\s*(\S+)/gi;
+    const pickupR = /PickupProof:\s*([^\n,;]+)/gi;
+    const deliveryR = /DeliveryProof:\s*([^\n,;]+)/gi;
     let m;
-    while ((m = pickupR.exec(note))) proofsPickup.push(m[1]);
-    while ((m = deliveryR.exec(note))) proofsDelivery.push(m[1]);
-    cleaned = cleaned.replace(/(PickupProof|DeliveryProof):\s*\S+/gi, "");
-    cleaned = cleaned.replace(/https?:\/\/\S+/gi, "");
-    cleaned = cleaned.trim();
+    while ((m = pickupR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsPickup.push(target);
+    }
+    while ((m = deliveryR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsDelivery.push(target);
+    }
+    cleaned = cleaned.replace(/PickupProof:[^\n]*/gi, "").replace(/DeliveryProof:[^\n]*/gi, "").trim();
   }
   return { noteText: cleaned, proofsPickup, proofsDelivery };
 };
@@ -161,7 +179,7 @@ export default function CustomerOrderProsesPage() {
           </div>
 
           <div className="space-y-3">
-            {stepItems.map((s, idx) => {
+            {stepItems.map((s: StepItem, idx: number) => {
               const active = currentStepIndex >= idx && currentStepIndex !== -1;
               const desc = stepDescOverride[s.key] || s.desc;
 
@@ -227,11 +245,14 @@ export default function CustomerOrderProsesPage() {
                         <div className="space-y-1">
                           <p className="text-xs text-gray-500">Bukti pengambilan</p>
                           <div className="flex flex-wrap gap-3">
-                            {proofsPickup.map((p) => (
-                              <a key={p} href={toAbs(p)} target="_blank" rel="noreferrer">
-                                <img src={toAbs(p)} alt="Bukti pengambilan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
-                              </a>
-                            ))}
+                            {proofsPickup.map((p) => {
+                              const src = toProof(p);
+                              return src ? (
+                                <a key={src} href={src} target="_blank" rel="noreferrer">
+                                  <img src={src} alt="Bukti pengambilan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                                </a>
+                              ) : null;
+                            })}
                           </div>
                         </div>
                       )}
@@ -242,11 +263,14 @@ export default function CustomerOrderProsesPage() {
                     <div className="space-y-1 text-gray-700 dark:text-white/90">
                       <p className="text-xs text-gray-500">Bukti penerimaan</p>
                       <div className="flex flex-wrap gap-3">
-                        {proofsDelivery.map((p) => (
-                          <a key={p} href={toAbs(p)} target="_blank" rel="noreferrer">
-                            <img src={toAbs(p)} alt="Bukti penerimaan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
-                          </a>
-                        ))}
+                        {proofsDelivery.map((p) => {
+                          const src = toProof(p);
+                          return src ? (
+                            <a key={src} href={src} target="_blank" rel="noreferrer">
+                              <img src={src} alt="Bukti penerimaan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                            </a>
+                          ) : null;
+                        })}
                       </div>
                     </div>
                   )}
