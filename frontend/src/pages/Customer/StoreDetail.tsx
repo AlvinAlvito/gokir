@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
+import { Modal } from "../../components/ui/modal";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -75,21 +76,20 @@ export default function StoreDetailPage() {
   const [store, setStore] = useState<StoreProfile | null>(null);
   const [cats, setCats] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [addedItem, setAddedItem] = useState<string | null>(null);
   const [qtyMap, setQtyMap] = useState<Record<string, number>>({});
 
   const fetchData = async () => {
     if (!id) return;
     try {
       setLoading(true);
-      setMsg(null);
       const r = await fetch(`${API_URL}/customer/stores/${id}`, { credentials: "include" });
       const j = await r.json();
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal memuat toko");
       setStore(j.data.store);
       setCats(j.data.categories || []);
     } catch (e: any) {
-      setMsg(e.message || "Terjadi kesalahan");
+      // fallback error ditampilkan sebagai modal add? cukup abaikan toast lama
     } finally {
       setLoading(false);
     }
@@ -126,13 +126,12 @@ export default function StoreDetailPage() {
     }
     currentCart[store.id] = storeEntry;
     saveCart(currentCart);
-    setMsg(`Ditambahkan ke keranjang (${item.name}).`);
+    setAddedItem(item.name);
   };
 
   return (
     <>
       <PageMeta title="Detail Toko" description="Lihat menu dan info toko" />
-      {msg && <div className="text-sm text-emerald-600 dark:text-emerald-400">{msg}</div>}
       {loading && <p className="text-sm text-gray-500">Memuat...</p>}
       {store && (
         <div className="space-y-6">
@@ -205,6 +204,25 @@ export default function StoreDetailPage() {
           </div>
         </div>
       )}
+      <Modal isOpen={!!addedItem} onClose={() => setAddedItem(null)} className="max-w-sm m-4">
+        <div className="p-5 space-y-4 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 011.414-1.42l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-semibold text-gray-800 dark:text-white/90">Hore!</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {addedItem ? `${addedItem} telah ditambahkan ke keranjang.` : "Item telah ditambahkan ke keranjang."} Ayok kita lakukan transaksi sekarang.
+            </p>
+          </div>
+          <div className="flex justify-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => setAddedItem(null)}>Lanjut belanja</Button>
+            <Button size="sm" onClick={() => navigate("/cart")}>Keranjang</Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

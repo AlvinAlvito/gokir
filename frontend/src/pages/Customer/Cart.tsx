@@ -115,7 +115,7 @@ export default function CustomerCartPage() {
       setCart(copy);
       saveCart(copy);
       closeModal();
-      navigate("/orders");
+      navigate("/orders/active");
     } catch (e: any) {
       setError(e.message || "Gagal membuat order");
       setModal((p) => ({ ...p, submitting: false }));
@@ -131,7 +131,15 @@ export default function CustomerCartPage() {
       {error && <div className="text-sm text-amber-600 dark:text-amber-400">{error}</div>}
 
       {cartStores.length === 0 ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">Keranjang kosong.</p>
+        <div className="text-sm text-gray-600 dark:text-gray-300 space-y-3">
+          <p>Keranjang belanjaan kamu masih kosong nih, ayok kita isi keranjang kamu..</p>
+          <button
+            onClick={() => navigate("/orders/food")}
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-white hover:bg-brand-600 transition"
+          >
+            Lihat toko
+          </button>
+        </div>
       ) : (
         <div className="space-y-6">
           {cartStores.map((s) => {

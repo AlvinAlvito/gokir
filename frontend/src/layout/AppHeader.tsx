@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useSidebar } from "../context/SidebarContext";
 import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
 import NotificationDropdown from "../components/header/NotificationDropdown";
 import UserDropdown from "../components/header/UserDropdown";
+import { useAuth } from "../context/AuthContext";
 
 const AppHeader: React.FC = () => {
-  const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
-
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [cartCount, setCartCount] = useState(0);
 
   const handleToggle = () => {
     if (window.innerWidth >= 991) {
@@ -17,10 +19,6 @@ const AppHeader: React.FC = () => {
     } else {
       toggleMobileSidebar();
     }
-  };
-
-  const toggleApplicationMenu = () => {
-    setApplicationMenuOpen(!isApplicationMenuOpen);
   };
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +35,39 @@ const AppHeader: React.FC = () => {
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    const computeCart = () => {
+      try {
+        const raw = localStorage.getItem("cart");
+        if (!raw) {
+          setCartCount(0);
+          return;
+        }
+        const data = JSON.parse(raw) as Record<string, { items: { qty: number }[] }>;
+        const total = Object.values(data).reduce((acc, store) => {
+          const storeTotal = (store.items || []).reduce((s, it) => s + (it.qty || 0), 0);
+          return acc + storeTotal;
+        }, 0);
+        setCartCount(total);
+      } catch {
+        setCartCount(0);
+      }
+    };
+
+    computeCart();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "cart") computeCart();
+    };
+    const onFocus = () => computeCart();
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
     };
   }, []);
 
@@ -83,31 +114,38 @@ const AppHeader: React.FC = () => {
             {/* Cross Icon */}
           </button>
 
-          <Link to="/" className="lg:hidden">
-            <img className="dark:hidden" src="/images/logo/logo.png" alt="Logo" />
-            <img className="hidden dark:block" src="/images/logo/logo.png" alt="Logo" />
-          </Link>
-
-
-          <button
-            onClick={toggleApplicationMenu}
-            className="flex items-center justify-center w-10 h-10 text-gray-700 rounded-lg z-99999 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 lg:hidden"
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M5.99902 10.4951C6.82745 10.4951 7.49902 11.1667 7.49902 11.9951V12.0051C7.49902 12.8335 6.82745 13.5051 5.99902 13.5051C5.1706 13.5051 4.49902 12.8335 4.49902 12.0051V11.9951C4.49902 11.1667 5.1706 10.4951 5.99902 10.4951ZM17.999 10.4951C18.8275 10.4951 19.499 11.1667 19.499 11.9951V12.0051C19.499 12.8335 18.8275 13.5051 17.999 13.5051C17.1706 13.5051 16.499 12.8335 16.499 12.0051V11.9951C16.499 11.1667 17.1706 10.4951 17.999 10.4951ZM13.499 11.9951C13.499 11.1667 12.8275 10.4951 11.999 10.4951C11.1706 10.4951 10.499 11.1667 10.499 11.9951V12.0051C10.499 12.8335 11.1706 13.5051 11.999 13.5051C12.8275 13.5051 13.499 12.8335 13.499 12.0051V11.9951Z"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2 ml-auto lg:hidden">
+            <ThemeToggleButton />
+            <NotificationDropdown />
+            {user?.role === "CUSTOMER" && (
+              <button
+                onClick={() => navigate("/cart")}
+                className="relative flex items-center justify-center w-10 h-10 text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                aria-label="Keranjang"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.25 3.75h1.386c.51 0 .955.343 1.09.835l.383 1.435m0 0 1.312 4.915m-.383-1.435h11.154c.89 0 1.515-.852 1.271-1.713l-.562-2.03A1.125 1.125 0 0 0 17.48 5.25H5.381m0 0L4.57 2.915A1.125 1.125 0 0 0 3.455 2.25H2.25m4.5 15a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25Zm10.5 0a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25Z"
+                  />
+                </svg>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white animate-pulse">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
+            <UserDropdown />
+          </div>
 
           <div className="hidden lg:block">
             <form>
@@ -144,15 +182,39 @@ const AppHeader: React.FC = () => {
             </form>
           </div>
         </div>
-        <div
-          className={`${isApplicationMenuOpen ? "flex" : "hidden"
-            } items-center justify-between w-full gap-4 px-5 py-4 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none`}
-        >
+        <div className="items-center justify-between hidden w-full gap-4 px-5 py-4 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none">
           <div className="flex items-center gap-2 2xsm:gap-3">
             {/* <!-- Dark Mode Toggler --> */}
             <ThemeToggleButton />
             {/* <!-- Dark Mode Toggler --> */}
             <NotificationDropdown />
+            {user?.role === "CUSTOMER" && (
+              <button
+                onClick={() => navigate("/cart")}
+                className="relative flex items-center justify-center w-10 h-10 text-gray-700 rounded-lg hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                aria-label="Keranjang"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.25 3.75h1.386c.51 0 .955.343 1.09.835l.383 1.435m0 0 1.312 4.915m-.383-1.435h11.154c.89 0 1.515-.852 1.271-1.713l-.562-2.03A1.125 1.125 0 0 0 17.48 5.25H5.381m0 0L4.57 2.915A1.125 1.125 0 0 0 3.455 2.25H2.25m4.5 15a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25Zm10.5 0a1.125 1.125 0 1 0 0 2.25 1.125 1.125 0 0 0 0-2.25Z"
+                  />
+                </svg>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white animate-pulse">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
             {/* <!-- Notification Menu Area --> */}
           </div>
           {/* <!-- User Area --> */}
