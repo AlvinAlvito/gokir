@@ -47,8 +47,10 @@ import StoreAvailability from "./pages/Store/Availability";
 import StoreTickets from "./pages/Store/Tickets";
 import StoreMenuPage from "./pages/Store/Menu";
 import StoreOrdersPage from "./pages/Store/Orders";
+import StoreOrdersHistoryPage from "./pages/Store/OrdersHistory";
 import DriverListOrderPage from "./pages/Driver/ListOrder";
 import DriverOrderProsesPage from "./pages/Driver/OrderProses";
+import DriverOrdersPage from "./pages/Driver/Orders";
 
 // Dashboards (buat halaman placeholder kalau belum ada)
 import NotFound from "./pages/OtherPage/NotFound";
@@ -112,6 +114,7 @@ export default function App() {
               <Route path="/store/tickets" element={<StoreTickets />} />
               <Route path="/store/menu" element={<StoreMenuPage />} />
               <Route path="/pesanan/store" element={<StoreOrdersPage />} />
+              <Route path="/store/orders" element={<StoreOrdersHistoryPage />} />
 
               {/* Driver routes */}
               <Route path="/dashboard/driver" element={<DriverDashboard />} />
@@ -121,6 +124,7 @@ export default function App() {
               <Route path="/driver/list-order" element={<DriverListOrderPage />} />
               <Route path="/driver/order-proses" element={<DriverOrderProsesPage />} />
               <Route path="/driver/order-proses/:id" element={<DriverOrderProsesPage />} />
+              <Route path="/driver/orders" element={<DriverOrdersPage />} />
 
               {/* Superadmin */}
               <Route path="/driver/superadmin" element={<AdminDriver />} />

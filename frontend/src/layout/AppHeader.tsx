@@ -114,7 +114,7 @@ const AppHeader: React.FC = () => {
             {/* Cross Icon */}
           </button>
 
-          <div className="flex items-center gap-2 ml-auto lg:hidden">
+          <div className="flex items-center gap-2 ml-auto py-3 lg:hidden">
             <ThemeToggleButton />
             <NotificationDropdown />
             {user?.role === "CUSTOMER" && (

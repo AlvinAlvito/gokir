@@ -40,13 +40,14 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     },
 
   ],
-  STORE: [
+ STORE: [
      { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/store" },
      { icon: <UserCircleIcon />, name: "Profil Toko", path: "/profile/store" },
     { icon: <PageIcon />, name: "Ketersediaan", path: "/store/availability" },
     { icon: <PageIcon />, name: "Tiket", path: "/store/tickets" },
     { icon: <ListIcon />, name: "Menu", path: "/store/menu" },
     { icon: <TableIcon />, name: "Pesanan", path: "/pesanan/store" },
+    { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/store/orders" },
      { icon: <TableIcon />, name: "Riwayat", path: "/riwayat/store" },
     { icon: <CalenderIcon />, name: "Jam Operasional", path: "s/chedule/store" },
   ],
@@ -57,6 +58,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <PageIcon />, name: "Tiket", path: "/driver/tickets" },
     { icon: <ListIcon />, name: "List Order", path: "/driver/list-order" },
     { icon: <TableIcon />, name: "Order Proses", path: "/driver/order-proses" },
+    { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/driver/orders" },
 
 
 

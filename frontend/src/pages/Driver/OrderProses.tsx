@@ -133,6 +133,7 @@ export default function DriverOrderProsesPage() {
   const [reportSending, setReportSending] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false);
 
   const fetchOrder = async () => {
     const endpoint = id ? `/driver/orders/${id}` : "/driver/orders/active";
@@ -185,6 +186,12 @@ export default function DriverOrderProsesPage() {
       setError("Bukti serah terima wajib diupload.");
       return;
     }
+    // Konfirmasi sebelum submit
+    setConfirmCompleteOpen(true);
+  };
+
+  const confirmSubmitDeliveryProof = async () => {
+    if (!order?.id || !proof) return;
     try {
       setUploading(true);
       setError(null);
@@ -199,6 +206,8 @@ export default function DriverOrderProsesPage() {
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal menyelesaikan order");
       setOrder(j.data.order || order);
       setProof(null);
+      setConfirmCompleteOpen(false);
+      navigate("/driver/orders");
     } catch (e: any) {
       setError(e.message || "Terjadi kesalahan");
     } finally {
@@ -243,9 +252,10 @@ export default function DriverOrderProsesPage() {
       {error && <div className="text-sm text-amber-600 dark:text-amber-400">{error}</div>}
       {loading && <p className="text-sm text-gray-500">Memuat...</p>}
       {!loading && !order && (
-        <p className="text-sm text-gray-500">
-          {error ? "" : "Order tidak ditemukan atau tidak ada order aktif."}
-        </p>
+        <div className="text-sm text-gray-500 space-y-2">
+          <p>{error ? "" : "Order tidak ditemukan atau tidak ada order aktif."}</p>
+          <Button size="sm" variant="outline" onClick={() => navigate("/driver/orders")}>Lihat riwayat orderan</Button>
+        </div>
       )}
       {order && (
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] space-y-6">
@@ -395,11 +405,11 @@ export default function DriverOrderProsesPage() {
             </div>
           )}
 
-          <div className="flex items-center gap-3">
-            <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
-          </div>
-        </div>
-      )}
+      <div className="flex items-center gap-3">
+        <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
+      </div>
+    </div>
+  )}
       <Modal isOpen={reportOpen} onClose={() => setReportOpen(false)} className="max-w-lg m-4">
         <div className="p-5 space-y-4">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Laporkan Transaksi</h3>
@@ -478,6 +488,19 @@ export default function DriverOrderProsesPage() {
           </div>
           <div className="flex justify-center">
             <Button size="sm" onClick={() => setReportSuccess(false)}>Tutup</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={confirmCompleteOpen} onClose={() => setConfirmCompleteOpen(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-4 text-center">
+          <p className="text-lg font-semibold text-gray-800 dark:text-white/90">Konfirmasi serah terima</p>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Apakah anda yakin pesanan sudah diantar kepada customer yang benar? jika iya maka transaksi dianggap selesai.
+          </p>
+          <div className="flex justify-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => setConfirmCompleteOpen(false)}>Batal</Button>
+            <Button size="sm" onClick={confirmSubmitDeliveryProof} disabled={uploading}>{uploading ? "Mengirim..." : "Selesai"}</Button>
           </div>
         </div>
       </Modal>

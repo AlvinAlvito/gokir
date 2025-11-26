@@ -202,9 +202,10 @@ export default function CustomerOrderProsesPage() {
       {error && <div className="text-sm text-amber-600 dark:text-amber-400">{error}</div>}
       {loading && <p className="text-sm text-gray-500">Memuat...</p>}
       {!loading && !order && (
-        <p className="text-sm text-gray-500">
-          {error ? "" : "Order tidak ditemukan atau belum ada order aktif."}
-        </p>
+        <div className="text-sm text-gray-500 space-y-2">
+          <p>{error ? "" : "Order tidak ditemukan atau belum ada order aktif."}</p>
+          <Button size="sm" variant="outline" onClick={() => navigate("/orders")}>Lihat riwayat orderan</Button>
+        </div>
       )}
       {order && (
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] space-y-6">

@@ -101,14 +101,7 @@ export default function UserDropdown() {
         onClick={toggleDropdown}
         className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
       >
-        <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <img
-            src={avatarSrc}
-            alt="User"
-            className="h-full w-full object-cover object-center"
-          />
-        </span>
-
+        
         <span className="block mr-1 font-medium text-theme-sm truncate max-w-[140px]">
           {displayName}
         </span>
@@ -130,6 +123,15 @@ export default function UserDropdown() {
             strokeLinejoin="round"
           />
         </svg>
+        
+        <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
+          <img
+            src={avatarSrc}
+            alt="User"
+            className="h-full w-full object-cover object-center"
+          />
+        </span>
+
       </button>
 
       <Dropdown

@@ -330,6 +330,46 @@ router.post("/:id/report", reportUpload.single("proof"), async (req: any, res) =
   return res.json({ ok: true, data: { report } });
 });
 
+// GET /driver/orders/history -> daftar riwayat order driver
+router.get("/history", async (req: any, res) => {
+  const driverId = req.user.id as string;
+  const pageRaw = Number(req.query.page);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const take = 3;
+  const skip = (page - 1) * take;
+
+  const orders = await prisma.customerOrder.findMany({
+    where: { driverId },
+    orderBy: { createdAt: "desc" },
+    skip,
+    take,
+    select: {
+      id: true,
+      status: true,
+      orderType: true,
+      paymentMethod: true,
+      quantity: true,
+      note: true,
+      createdAt: true,
+      customer: { select: { id: true, username: true, email: true, phone: true } },
+      store: {
+        select: {
+          id: true,
+          storeProfile: { select: { storeName: true, photoUrl: true, address: true } },
+          storeAvailability: { select: { region: true } },
+        },
+      },
+      menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
+      customStoreName: true,
+      customStoreAddress: true,
+      pickupAddress: true,
+      dropoffAddress: true,
+    },
+  });
+
+  return res.json({ ok: true, data: { orders: orders.map(withParsedNote), page, perPage: take } });
+});
+
 // GET /driver/orders/:id -> detail order milik driver ini (atau status searching)
 router.get("/:id", async (req: any, res) => {
   const driverId = req.user.id as string;
