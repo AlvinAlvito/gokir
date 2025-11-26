@@ -104,7 +104,7 @@ export default function StoreOrdersHistoryPage() {
     try {
       setLoading(true);
       setMsg(null);
-      const r = await fetch(`${API_URL}/store/orders?page=${pageToFetch}`, { credentials: "include" });
+      const r = await fetch(`${API_URL}/store/orders/history?page=${pageToFetch}`, { credentials: "include" });
       const j = await r.json();
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal memuat order");
       const data = j.data || {};

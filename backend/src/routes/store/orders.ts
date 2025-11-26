@@ -76,6 +76,38 @@ router.get("/", async (req: any, res) => {
   const take = 3;
   const skip = (page - 1) * take;
   const orders = await prisma.customerOrder.findMany({
+    where: { storeId, status: { not: "COMPLETED" } },
+    orderBy: { createdAt: "desc" },
+    skip,
+    take,
+    select: {
+      id: true,
+      status: true,
+      orderType: true,
+      paymentMethod: true,
+      quantity: true,
+      note: true,
+      createdAt: true,
+      customer: { select: { id: true, username: true, email: true, phone: true } },
+      driver: { select: { id: true, username: true, email: true, phone: true } },
+      menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
+      customStoreName: true,
+      customStoreAddress: true,
+      pickupAddress: true,
+      dropoffAddress: true,
+    },
+  });
+  return res.json({ ok: true, data: { orders: orders.map(withParsedNote), page, perPage: take } });
+});
+
+// GET /store/orders/history -> seluruh riwayat transaksi toko (paginasi)
+router.get("/history", async (req: any, res) => {
+  const storeId = req.user.id;
+  const pageRaw = Number(req.query.page);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const take = 3;
+  const skip = (page - 1) * take;
+  const orders = await prisma.customerOrder.findMany({
     where: { storeId },
     orderBy: { createdAt: "desc" },
     skip,
