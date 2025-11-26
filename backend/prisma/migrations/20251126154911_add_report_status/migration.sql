@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `transactionreport` ADD COLUMN `status` ENUM('PENDING', 'IN_PROGRESS', 'REJECTED', 'RESOLVED') NOT NULL DEFAULT 'PENDING';

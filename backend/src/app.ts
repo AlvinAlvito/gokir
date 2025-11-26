@@ -20,6 +20,7 @@ import adminDrivers from "@/routes/admin/drivers";
 import adminAnnouncements from "@/routes/admin/announcements";
 import adminTickets from "@/routes/admin/tickets";
 import adminStores from "@/routes/admin/stores";
+import superAdminReports from "@/routes/superadmin/reports";
 import announcementsRoute from "@/routes/announcements";
 import customerProfileRoute from "@/routes/customer/profile";
 import customerStoresRoute from "@/routes/customer/stores";
@@ -93,6 +94,7 @@ app.use("/admin/drivers", adminDrivers);
 app.use("/admin/stores", adminStores);
 app.use("/admin/announcements", adminAnnouncements);
 app.use("/admin/tickets", adminTickets);
+app.use("/superadmin/reports", superAdminReports);
 app.use("/announcements", announcementsRoute);
 
 app.use("/store/profile", requireAuth, storeProfileRoute);

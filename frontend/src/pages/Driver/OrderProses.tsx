@@ -4,6 +4,7 @@ import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
+import { Modal } from "../../components/ui/modal";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -125,6 +126,13 @@ export default function DriverOrderProsesPage() {
   const [error, setError] = useState<string | null>(null);
   const [proof, setProof] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState("driver");
+  const [reportDetail, setReportDetail] = useState("");
+  const [reportProof, setReportProof] = useState<File | null>(null);
+  const [reportSending, setReportSending] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   const fetchOrder = async () => {
     const endpoint = id ? `/driver/orders/${id}` : "/driver/orders/active";
@@ -195,6 +203,37 @@ export default function DriverOrderProsesPage() {
       setError(e.message || "Terjadi kesalahan");
     } finally {
       setUploading(false);
+    }
+  };
+
+  const submitReport = async () => {
+    if (!order?.id) return;
+    if (!reportDetail.trim()) {
+      setReportError("Detail permasalahan wajib diisi.");
+      return;
+    }
+    try {
+      setReportSending(true);
+      setReportError(null);
+      const fd = new FormData();
+      fd.append("category", reportCategory);
+      fd.append("detail", reportDetail.trim());
+      if (reportProof) fd.append("proof", reportProof);
+      const r = await fetch(`${API_URL}/driver/orders/${order.id}/report`, {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal mengirim laporan");
+      setReportSending(false);
+      setReportOpen(false);
+      setReportSuccess(true);
+      setReportDetail("");
+      setReportProof(null);
+    } catch (e: any) {
+      setReportSending(false);
+      setReportError(e.message || "Gagal mengirim laporan");
     }
   };
 
@@ -357,10 +396,91 @@ export default function DriverOrderProsesPage() {
           )}
 
           <div className="flex items-center gap-3">
-            <Button size="sm" variant="outline" onClick={() => navigate(-1)}>Kembali</Button>
+            <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
           </div>
         </div>
       )}
+      <Modal isOpen={reportOpen} onClose={() => setReportOpen(false)} className="max-w-lg m-4">
+        <div className="p-5 space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Laporkan Transaksi</h3>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Masalah pada transaksi</label>
+              <select
+                value={reportCategory}
+                onChange={(e) => setReportCategory(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90"
+              >
+                <option value="driver">Masalah pada driver</option>
+                <option value="customer">Masalah pada customer</option>
+                <option value="store">Masalah pada toko</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Detail permasalahan</label>
+              <textarea
+                value={reportDetail}
+                onChange={(e) => setReportDetail(e.target.value)}
+                placeholder="Contoh: customer tidak merespon, transaksi tidak dapat diselesaikan."
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Upload foto bukti pendukung</label>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.gif,image/*"
+                onChange={(e: any) => {
+                  const file = e.target.files?.[0] || null;
+                  setReportProof(file);
+                }}
+                className="block w-full text-sm text-gray-700 dark:text-gray-300"
+              />
+              {reportProof && <p className="text-xs text-gray-500 dark:text-gray-400">File: {reportProof.name}</p>}
+            </div>
+            {reportError && <p className="text-xs text-amber-600 dark:text-amber-400">{reportError}</p>}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => setReportOpen(false)}>Batal</Button>
+              <Button
+                size="sm"
+                onClick={submitReport}
+                disabled={reportSending}
+              >
+                {reportSending ? "Mengirim..." : "Kirim"}
+              </Button>
+            </div>
+            <a
+              href="https://wa.me/6281260303320"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-white/[0.04]"
+            >
+              Hubungi customer service
+            </a>
+          </div>
+        </div>
+      </Modal>
+      <Modal isOpen={reportSuccess} onClose={() => setReportSuccess(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-4 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 011.414-1.42l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-semibold text-gray-800 dark:text-white/90">Laporan diterima</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Laporan anda kami terima, kami akan mereview laporan anda dan akan segera menghubungi anda melalui WhatsApp anda.
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <Button size="sm" onClick={() => setReportSuccess(false)}>Tutup</Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

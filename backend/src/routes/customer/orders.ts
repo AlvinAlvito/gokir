@@ -2,9 +2,37 @@ import { Router } from "express";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 const router = Router();
 router.use(requireRole(["CUSTOMER"]));
+
+const reportUploadDir = path.join(process.cwd(), "uploads", "report-proofs");
+if (!fs.existsSync(reportUploadDir)) fs.mkdirSync(reportUploadDir, { recursive: true });
+const reportStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, reportUploadDir),
+  filename: (_req, file, cb) => {
+    const rawExt = path.extname(file.originalname);
+    const guessedExt =
+      rawExt ||
+      (file.mimetype === "image/jpeg" ? ".jpg" :
+      file.mimetype === "image/png" ? ".png" :
+      file.mimetype === "image/webp" ? ".webp" :
+      file.mimetype === "image/gif" ? ".gif" : "");
+    const base = path.basename(file.originalname, rawExt).replace(/[^a-zA-Z0-9-_]/g, "");
+    cb(null, `${base || "proof"}-${Date.now()}${guessedExt}`);
+  },
+});
+const reportUpload = multer({
+  storage: reportStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) return cb(new Error("Hanya file gambar yang diperbolehkan"));
+    cb(null, true);
+  },
+});
 
 const parseNote = (note?: string | null) => {
   const proofsPickup: string[] = [];
@@ -145,12 +173,55 @@ router.post("/", async (req: any, res) => {
   return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
 });
 
+// POST /customer/orders/:id/report -> laporkan transaksi oleh customer
+router.post("/:id/report", reportUpload.single("proof"), async (req: any, res) => {
+  const user = req.user!;
+  const order = await prisma.customerOrder.findFirst({
+    where: { id: req.params.id, customerId: user.id },
+    select: { id: true },
+  });
+  if (!order) return res.status(404).json({ ok: false, error: { message: "Order tidak ditemukan" } });
+
+  const categoryRaw = String(req.body.category || "").toUpperCase();
+  const validCategories = ["DRIVER", "CUSTOMER", "STORE"];
+  if (!validCategories.includes(categoryRaw)) {
+    return res.status(400).json({ ok: false, error: { message: "Kategori laporan tidak valid" } });
+  }
+  const detail = String(req.body.detail || "").trim();
+  if (!detail) return res.status(400).json({ ok: false, error: { message: "Detail permasalahan wajib diisi" } });
+
+  const existingCount = await prisma.transactionReport.count({ where: { orderId: order.id, reporterId: user.id } });
+  if (existingCount >= 2) {
+    return res.status(429).json({ ok: false, error: { message: "Batas laporan untuk transaksi ini telah tercapai" } });
+  }
+
+  const proofPath = req.file ? `/uploads/report-proofs/${req.file.filename}` : null;
+  const report = await prisma.transactionReport.create({
+    data: {
+      orderId: order.id,
+      reporterId: user.id,
+      category: categoryRaw as any,
+      detail,
+      proofUrl: proofPath || undefined,
+    },
+    select: { id: true, category: true, detail: true, proofUrl: true, createdAt: true },
+  });
+
+  return res.json({ ok: true, data: { report } });
+});
+
 // GET /customer/orders
 router.get("/", async (req: any, res) => {
   const user = req.user!;
+  const pageRaw = Number(req.query.page);
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const take = 3;
+  const skip = (page - 1) * take;
   const orders = await prisma.customerOrder.findMany({
     where: { customerId: user.id },
     orderBy: { createdAt: "desc" },
+    skip,
+    take,
     select: {
       id: true,
       status: true,
@@ -168,7 +239,7 @@ router.get("/", async (req: any, res) => {
       driver: { select: { id: true, username: true, email: true, phone: true, driverProfile: { select: { facePhotoUrl: true } } } },
     },
   });
-  return res.json({ ok: true, data: { orders: orders.map(withParsedNote) } });
+  return res.json({ ok: true, data: { orders: orders.map(withParsedNote), page, perPage: take } });
 });
 
 // GET /customer/orders/active -> order aktif (belum selesai/dibatalkan) terbaru

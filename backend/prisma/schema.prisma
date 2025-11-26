@@ -44,6 +44,7 @@ model User {
   customerOrders     CustomerOrder[] @relation("CustomerOrders")
   storeOrders        CustomerOrder[] @relation("StoreOrders")
   driverOrders       CustomerOrder[] @relation("DriverOrders")
+  transactionReports TransactionReport[]
   auditLogs          AuditLog[]
 
   reviewedDrivers DriverProfile[] @relation("ReviewedBy")
@@ -290,6 +291,19 @@ enum CustomerOrderType {
   RIDE
 }
 
+enum ReportCategory {
+  DRIVER
+  CUSTOMER
+  STORE
+}
+
+enum ReportStatus {
+  PENDING
+  IN_PROGRESS
+  REJECTED
+  RESOLVED
+}
+
 model CustomerOrder {
   id             String   @id @default(cuid())
   customerId     String
@@ -311,6 +325,7 @@ model CustomerOrder {
   store          User?     @relation("StoreOrders", fields: [storeId], references: [id])
   driver         User?     @relation("DriverOrders", fields: [driverId], references: [id])
   menuItem       MenuItem? @relation(fields: [menuItemId], references: [id])
+  reports        TransactionReport[]
 
   @@index([customerId, createdAt])
   @@index([storeId])
@@ -357,6 +372,22 @@ model TicketOrder {
   updatedAt      DateTime          @updatedAt
 
   @@index([userId, status])
+}
+
+model TransactionReport {
+  id         String         @id @default(cuid())
+  orderId    String
+  order      CustomerOrder  @relation(fields: [orderId], references: [id])
+  reporterId String
+  reporter   User           @relation(fields: [reporterId], references: [id])
+  category   ReportCategory
+  status     ReportStatus   @default(PENDING)
+  detail     String         @db.Text
+  proofUrl   String?
+  createdAt  DateTime       @default(now())
+
+  @@index([orderId, category])
+  @@index([reporterId])
 }
 
 model VerificationToken {

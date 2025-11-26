@@ -35,6 +35,31 @@ const upload = multer({
   },
 });
 
+const reportUploadDir = path.join(process.cwd(), "uploads", "report-proofs");
+if (!fs.existsSync(reportUploadDir)) fs.mkdirSync(reportUploadDir, { recursive: true });
+const reportStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, reportUploadDir),
+  filename: (_req, file, cb) => {
+    const rawExt = path.extname(file.originalname);
+    const guessedExt =
+      rawExt ||
+      (file.mimetype === "image/jpeg" ? ".jpg" :
+      file.mimetype === "image/png" ? ".png" :
+      file.mimetype === "image/webp" ? ".webp" :
+      file.mimetype === "image/gif" ? ".gif" : "");
+    const base = path.basename(file.originalname, rawExt).replace(/[^a-zA-Z0-9-_]/g, "");
+    cb(null, `${base || "proof"}-${Date.now()}${guessedExt}`);
+  },
+});
+const reportUpload = multer({
+  storage: reportStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) return cb(new Error("Hanya file gambar yang diperbolehkan"));
+    cb(null, true);
+  },
+});
+
 const parseNote = (note?: string | null) => {
   const proofsPickup: string[] = [];
   const proofsDelivery: string[] = [];
@@ -266,6 +291,43 @@ router.post("/:id/complete", upload.single("proof"), async (req: any, res) => {
   });
 
   return res.json({ ok: true, data: { order: withParsedNote(updated), proofUrl: proofPath } });
+});
+
+// POST /driver/orders/:id/report -> laporkan transaksi oleh driver
+router.post("/:id/report", reportUpload.single("proof"), async (req: any, res) => {
+  const driverId = req.user.id as string;
+  const order = await prisma.customerOrder.findFirst({
+    where: { id: req.params.id, driverId },
+    select: { id: true },
+  });
+  if (!order) return res.status(404).json({ ok: false, error: { message: "Order tidak ditemukan" } });
+
+  const categoryRaw = String(req.body.category || "").toUpperCase();
+  const validCategories = ["DRIVER", "CUSTOMER", "STORE"];
+  if (!validCategories.includes(categoryRaw)) {
+    return res.status(400).json({ ok: false, error: { message: "Kategori laporan tidak valid" } });
+  }
+  const detail = String(req.body.detail || "").trim();
+  if (!detail) return res.status(400).json({ ok: false, error: { message: "Detail permasalahan wajib diisi" } });
+
+  const existingCount = await prisma.transactionReport.count({ where: { orderId: order.id, reporterId: driverId } });
+  if (existingCount >= 2) {
+    return res.status(429).json({ ok: false, error: { message: "Batas laporan untuk transaksi ini telah tercapai" } });
+  }
+
+  const proofPath = req.file ? `/uploads/report-proofs/${req.file.filename}` : null;
+  const report = await prisma.transactionReport.create({
+    data: {
+      orderId: order.id,
+      reporterId: driverId,
+      category: categoryRaw as any,
+      detail,
+      proofUrl: proofPath || undefined,
+    },
+    select: { id: true, category: true, detail: true, proofUrl: true, createdAt: true },
+  });
+
+  return res.json({ ok: true, data: { report } });
 });
 
 // GET /driver/orders/:id -> detail order milik driver ini (atau status searching)

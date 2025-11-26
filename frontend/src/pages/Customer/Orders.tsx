@@ -1,6 +1,8 @@
 ﻿import { useEffect, useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
+import Button from "../../components/ui/button/Button";
+import { Modal } from "../../components/ui/modal";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -103,15 +105,22 @@ export default function CustomerOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const perPage = 3;
+  const [hasNext, setHasNext] = useState(false);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (pageToFetch = 1) => {
     try {
       setLoading(true);
       setMsg(null);
-      const r = await fetch(`${API_URL}/customer/orders`, { credentials: "include" });
+      const r = await fetch(`${API_URL}/customer/orders?page=${pageToFetch}`, { credentials: "include" });
       const j = await r.json();
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal memuat order");
-      setOrders(j.data.orders || []);
+      const data = j.data || {};
+      const fetched = data.orders || [];
+      setOrders(fetched);
+      setPage(data.page || pageToFetch);
+      setHasNext(fetched.length === perPage);
     } catch (e: any) {
       setMsg(e.message || "Terjadi kesalahan");
     } finally {
@@ -119,7 +128,7 @@ export default function CustomerOrdersPage() {
     }
   };
 
-  useEffect(() => { fetchOrders(); }, []);
+  useEffect(() => { fetchOrders(page); }, []); // initial load
 
   return (
     <>
@@ -147,6 +156,23 @@ export default function CustomerOrdersPage() {
             {orders.map((o) => (
               <OrderCard key={o.id} order={o} />
             ))}
+            <div className="flex items-center justify-between pt-3">
+              <button
+                onClick={() => fetchOrders(Math.max(1, page - 1))}
+                disabled={page <= 1 || loading}
+                className="text-sm rounded-lg border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-white/[0.04]"
+              >
+                Sebelumnya
+              </button>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Halaman {page}</p>
+              <button
+                onClick={() => fetchOrders(page + 1)}
+                disabled={!hasNext || loading}
+                className="text-sm rounded-lg border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-white/[0.04]"
+              >
+                Berikutnya
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -157,6 +183,44 @@ export default function CustomerOrdersPage() {
 type OrderCardProps = { order: Order };
 const OrderCard = ({ order }: OrderCardProps) => {
   const { noteText, proofsPickup, proofsDelivery } = parseNote(order.note);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportCategory, setReportCategory] = useState("driver");
+  const [reportDetail, setReportDetail] = useState("");
+  const [reportProof, setReportProof] = useState<File | null>(null);
+  const [reportSending, setReportSending] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportSuccess, setReportSuccess] = useState(false);
+
+  const submitReport = async () => {
+    if (!order?.id) return;
+    if (!reportDetail.trim()) {
+      setReportError("Detail permasalahan wajib diisi.");
+      return;
+    }
+    try {
+      setReportSending(true);
+      setReportError(null);
+      const fd = new FormData();
+      fd.append("category", reportCategory);
+      fd.append("detail", reportDetail.trim());
+      if (reportProof) fd.append("proof", reportProof);
+      const r = await fetch(`${API_URL}/customer/orders/${order.id}/report`, {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal mengirim laporan");
+      setReportSending(false);
+      setReportOpen(false);
+      setReportSuccess(true);
+      setReportDetail("");
+      setReportProof(null);
+    } catch (e: any) {
+      setReportSending(false);
+      setReportError(e.message || "Gagal mengirim laporan");
+    }
+  };
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
@@ -221,6 +285,89 @@ const OrderCard = ({ order }: OrderCardProps) => {
           )}
         </div>
       )}
+
+      <div className="mt-3">
+        <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
+      </div>
+
+      <Modal isOpen={reportOpen} onClose={() => setReportOpen(false)} className="max-w-lg m-4">
+        <div className="p-5 space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Laporkan Transaksi</h3>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Masalah pada transaksi</label>
+              <select
+                value={reportCategory}
+                onChange={(e) => setReportCategory(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90"
+              >
+                <option value="driver">Masalah pada driver</option>
+                <option value="customer">Masalah pada customer</option>
+                <option value="store">Masalah pada toko</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Detail permasalahan</label>
+              <textarea
+                value={reportDetail}
+                onChange={(e) => setReportDetail(e.target.value)}
+                placeholder="Contoh: driver membawa lari makanan saya dan tidak diantar."
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Upload foto bukti pendukung</label>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.gif,image/*"
+                onChange={(e: any) => {
+                  const file = e.target.files?.[0] || null;
+                  setReportProof(file);
+                }}
+                className="block w-full text-sm text-gray-700 dark:text-gray-300"
+              />
+              {reportProof && <p className="text-xs text-gray-500 dark:text-gray-400">File: {reportProof.name}</p>}
+            </div>
+            {reportError && <p className="text-xs text-amber-600 dark:text-amber-400">{reportError}</p>}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" onClick={() => setReportOpen(false)}>Batal</Button>
+              <Button size="sm" onClick={submitReport} disabled={reportSending}>
+                {reportSending ? "Mengirim..." : "Kirim"}
+              </Button>
+            </div>
+            <a
+              href="https://wa.me/6281260303320"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-white/[0.04]"
+            >
+              Hubungi customer service
+            </a>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={reportSuccess} onClose={() => setReportSuccess(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-4 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.25a1 1 0 01-1.414 0l-3.25-3.25a1 1 0 011.414-1.42l2.543 2.543 6.543-6.543a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-semibold text-gray-800 dark:text-white/90">Laporan diterima</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Laporan anda kami terima, kami akan mereview laporan anda dan akan segera menghubungi anda melalui WhatsApp anda.
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <Button size="sm" onClick={() => setReportSuccess(false)}>Tutup</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
