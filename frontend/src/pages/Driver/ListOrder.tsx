@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+ï»¿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
+import { Modal } from "../../components/ui/modal";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -86,6 +87,8 @@ export default function DriverListOrderPage() {
   const [error, setError] = useState<string | null>(null);
   const [claiming, setClaiming] = useState<string | null>(null);
   const [hasActive, setHasActive] = useState(false);
+  const [ticketWarning, setTicketWarning] = useState(false);
+  const [activeWarning, setActiveWarning] = useState(false);
   const navigate = useNavigate();
 
   const fetchOrders = async () => {
@@ -107,6 +110,10 @@ export default function DriverListOrderPage() {
   useEffect(() => { fetchOrders(); }, []);
 
   const claim = async (id: string) => {
+    if (hasActive) {
+      setActiveWarning(true);
+      return;
+    }
     try {
       setClaiming(id);
       const r = await fetch(`${API_URL}/driver/orders/${id}/claim`, {
@@ -118,7 +125,11 @@ export default function DriverListOrderPage() {
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal mengambil orderan");
       navigate(`/driver/order-proses/${id}`);
     } catch (e: any) {
-      setError(e.message || "Gagal mengambil orderan");
+      const msg = e.message || "Gagal mengambil orderan";
+      setError(msg);
+      if (msg.toLowerCase().includes("tiket tidak mencukupi")) {
+        setTicketWarning(true);
+      }
     } finally {
       setClaiming(null);
     }
@@ -153,7 +164,7 @@ export default function DriverListOrderPage() {
           {o.menuItem && (
             <div>
               <p className="font-semibold">Menu</p>
-              <p>{o.menuItem.name} × {o.quantity ?? 1}</p>
+              <p>{o.menuItem.name} x {o.quantity ?? 1}</p>
               <p className="text-xs text-gray-500">Perkiraan: {currency(total)}</p>
             </div>
           )}
@@ -179,17 +190,15 @@ export default function DriverListOrderPage() {
           )}
         </div>
 
-        {!hasActive && (
-          <div className="flex items-center gap-3">
-            <Button
-              size="sm"
-              onClick={() => claim(o.id)}
-              disabled={!!claiming}
-            >
-              {claiming === o.id ? "Memproses..." : "Ambil orderan"}
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <Button
+            size="sm"
+            onClick={() => claim(o.id)}
+            disabled={!!claiming}
+          >
+            {claiming === o.id ? "Memproses..." : "Ambil orderan"}
+          </Button>
+        </div>
       </div>
     );
   };
@@ -215,6 +224,38 @@ export default function DriverListOrderPage() {
           </div>
         )}
       </div>
+
+      <Modal isOpen={ticketWarning} onClose={() => setTicketWarning(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-4 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.485 0l6.518 11.59A2 2 0 0 1 16.518 17H3.482a2 2 0 0 1-1.742-3.311l6.517-11.59Z" clipRule="evenodd" />
+              <path d="M11 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
+              <path stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" d="M10 7v3" />
+            </svg>
+          </div>
+          <p className="text-sm text-gray-700 dark:text-gray-200">Tiket tidak mencukupi, silakan top up tiket terlebih dahulu agar bisa mengambil orderan ini.</p>
+          <div className="flex justify-center">
+            <Button size="sm" onClick={() => setTicketWarning(false)}>Tutup</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={activeWarning} onClose={() => setActiveWarning(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-4 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.485 0l6.518 11.59A2 2 0 0 1 16.518 17H3.482a2 2 0 0 1-1.742-3.311l6.517-11.59Z" clipRule="evenodd" />
+              <path d="M11 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
+              <path stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" d="M10 7v3" />
+            </svg>
+          </div>
+          <p className="text-sm text-gray-700 dark:text-gray-200">Ups anda sedang melakukan proses transaksi yang aktif sekarang, selesaikan proses itu dulu baru ambil orderan baru lagi yaa.</p>
+          <div className="flex justify-center">
+            <Button size="sm" onClick={() => setActiveWarning(false)}>Tutup</Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

@@ -89,6 +89,19 @@ router.post("/", async (req: any, res) => {
     return res.status(400).json({ ok: false, error: { message: "Payload tidak valid" } });
   }
 
+  const hasActive = await prisma.customerOrder.count({
+    where: {
+      customerId: user.id,
+      status: { notIn: ["COMPLETED", "CANCELLED", "REJECTED"] },
+    },
+  });
+  if (hasActive > 0) {
+    return res.status(400).json({
+      ok: false,
+      error: { message: "Ups, anda memiliki transaksi yang sedang berlangsung sekarang, harap tunggu sampai transaksi itu selesai lalu coba lagi." },
+    });
+  }
+
   const {
     orderType,
     storeProfileId,
