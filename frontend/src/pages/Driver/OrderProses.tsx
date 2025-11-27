@@ -64,13 +64,20 @@ const typeLabel: Record<OrderType, string> = {
 };
 
 type StepItem = { key: Status; label: string; desc: string };
-const stepItems: StepItem[] = [
+const stepItemsFood: StepItem[] = [
   { key: "WAITING_STORE_CONFIRM", label: "Menunggu konfirmasi toko", desc: "Pesanan menunggu disetujui oleh toko." },
-  { key: "CONFIRMED_COOKING", label: "Diproses toko", desc: "Pesanan kamu sedang dibuat oleh toko." },
-  { key: "SEARCHING_DRIVER", label: "Mencari driver", desc: "Pesanan sudah selesai dibuat, sedang mencari driver." },
-  { key: "DRIVER_ASSIGNED", label: "Driver ditemukan", desc: "Driver sudah ditemukan dan menjemput pesanan kamu." },
-  { key: "ON_DELIVERY", label: "Sedang diantar", desc: "Pesanan sedang diantar ke lokasi tujuan kamu, pastikan alamat benar." },
-  { key: "COMPLETED", label: "Selesai", desc: "Pesanan kamu sudah selesai diantarkan." },
+  { key: "CONFIRMED_COOKING", label: "Diproses toko", desc: "Pesanan kamu sedang dibuat oleh toko yaa" },
+  { key: "SEARCHING_DRIVER", label: "Mencari driver", desc: "Pesanan kamu sudah selesai, dan sedang mencari driver untuk mengantar pesanan kamu." },
+  { key: "DRIVER_ASSIGNED", label: "Driver ditemukan", desc: "Driver sudah ditemukan dan sedang menjemput pesanan kamu" },
+  { key: "ON_DELIVERY", label: "Sedang diantar", desc: "Pesanan sedang diantar ke lokasi tujuan anda, pastikan alamat anda benar yaa" },
+  { key: "COMPLETED", label: "Selesai", desc: "Pesanan kamu sudah selesai diantarkan" },
+];
+
+const stepItemsRide: StepItem[] = [
+  { key: "SEARCHING_DRIVER", label: "Mencari driver", desc: "Sedang mencari driver untuk perjalananmu." },
+  { key: "DRIVER_ASSIGNED", label: "Driver ditemukan", desc: "Driver sudah ditemukan dan sedang menjemput kamu" },
+  { key: "ON_DELIVERY", label: "Sedang diantar", desc: "Perjalanan sedang berlangsung, pastikan tujuan benar yaa" },
+  { key: "COMPLETED", label: "Selesai", desc: "Perjalanan selesai" },
 ];
 
 const currency = (v?: number | null) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v ?? 0);
@@ -98,6 +105,14 @@ const extractMap = (note?: string | null) => {
   if (!note) return null;
   const m = note.match(/Maps:\s*(https?:\S+)/i);
   return m ? m[1] : null;
+};
+
+const parseRideMeta = (note?: string | null) => {
+  const pickupMap = note?.match(/Maps:\s*(https?:\S+)/i)?.[1] || null;
+  const dropoffMap = note?.match(/DropoffMap:\s*(https?:\S+)/i)?.[1] || null;
+  const pickupPhoto = note?.match(/PickupPhoto:\s*([^\s\n]+)/i)?.[1] || null;
+  const est = note?.match(/Estimasi harga:\s*([^\n]+)/i)?.[1] || null;
+  return { pickupMap, dropoffMap, pickupPhoto, estPrice: est };
 };
 
 const parseNote = (note?: string | null) => {
@@ -164,9 +179,9 @@ export default function DriverOrderProsesPage() {
 
   const { noteText, proofsPickup, proofsDelivery } = parseNote(order?.note);
   const mapUrl = extractMap(order?.note);
-  const currentStepIndex = useMemo(() => order ? stepItems.findIndex((s) => s.key === order.status) : -1, [order]);
-  const needsPickupProof = order?.status === "DRIVER_ASSIGNED";
-  const needsDeliveryProof = order?.status === "ON_DELIVERY";
+  const steps = order?.orderType === "RIDE" ? stepItemsRide : stepItemsFood;
+  const currentStepIndex = useMemo(() => order ? steps.findIndex((s) => s.key === order.status) : -1, [order, steps]);
+  const rideMeta = order?.orderType === "RIDE" ? parseRideMeta(order.note) : null;
 
   const stepDescOverride: Partial<Record<Status, string>> = {
     CONFIRMED_COOKING: "Pesanan kamu sedang dibuat oleh toko yaa",
@@ -175,6 +190,9 @@ export default function DriverOrderProsesPage() {
     ON_DELIVERY: "Pesanan sedang diantar ke lokasi tujuan anda, pastikan alamat anda benar yaa",
     COMPLETED: "Pesanan kamu sudah selesai diantarkan",
   };
+
+  const needsPickupProof = order?.status === "DRIVER_ASSIGNED";
+  const needsDeliveryProof = order?.status === "ON_DELIVERY";
 
   const handlePickup = async () => {
     if (!order?.id) return;
@@ -284,7 +302,7 @@ export default function DriverOrderProsesPage() {
           </div>
 
           <div className="space-y-3">
-            {stepItems.map((s: StepItem, idx: number) => {
+            {steps.map((s: StepItem, idx: number) => {
               const active = currentStepIndex >= idx && currentStepIndex !== -1;
               const desc = stepDescOverride[s.key] || s.desc;
 
@@ -329,10 +347,47 @@ export default function DriverOrderProsesPage() {
 
                   {s.key === "ON_DELIVERY" && order.dropoffAddress && (
                     <div className="space-y-2 text-gray-700 dark:text-white/90">
-                      <p className="text-sm font-semibold">Lokasi Pengantaran</p>
-                      <p>{order.dropoffAddress}</p>
-                      {mapUrl && (
-                        <a href={mapUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">Buka lokasi (Maps)</a>
+                      {order.orderType === "RIDE" ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold">Titik lokasi penjemputan</p>
+                          <p className="text-xs text-gray-500">Wilayah penjemputan</p>
+                          <p className="text-sm">{order.pickupRegion || "-"}</p>
+                          <p className="text-xs text-gray-500">Alamat lengkap penjemputan</p>
+                          <p className="text-sm">{order.pickupAddress || "-"}</p>
+                          {rideMeta?.pickupMap && (
+                            <a href={rideMeta.pickupMap} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">Buka lokasi penjemputan (Maps)</a>
+                          )}
+                          {rideMeta?.pickupPhoto && (
+                            <a
+                              href={rideMeta.pickupPhoto.startsWith("http") ? rideMeta.pickupPhoto : `${API_URL}${rideMeta.pickupPhoto.startsWith("/") ? "" : "/"}${rideMeta.pickupPhoto}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-brand-600 hover:underline block"
+                            >
+                              Lihat foto pickup
+                            </a>
+                          )}
+
+                          <p className="text-sm font-semibold mt-3">Titik lokasi tujuan</p>
+                          <p className="text-xs text-gray-500">Wilayah tujuan</p>
+                          <p className="text-sm">{order.dropoffRegion || "-"}</p>
+                          <p className="text-xs text-gray-500">Alamat lengkap tujuan</p>
+                          <p className="text-sm">{order.dropoffAddress || "-"}</p>
+                          {rideMeta?.dropoffMap && (
+                            <a href={rideMeta.dropoffMap} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">Buka lokasi tujuan (Maps)</a>
+                          )}
+                          {rideMeta?.estPrice && (
+                            <p className="text-sm font-semibold mt-2">Estimasi harga: {rideMeta.estPrice}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm font-semibold">Lokasi Pengantaran</p>
+                          <p>{order.dropoffAddress}</p>
+                          {mapUrl && (
+                            <a href={mapUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">Buka lokasi (Maps)</a>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
@@ -394,9 +449,7 @@ export default function DriverOrderProsesPage() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
-              {needsPickupProof ? "Upload bukti pickup" : needsDeliveryProof ? "Upload bukti serah terima" : "Upload bukti"}
-            </p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Upload bukti</p>
             <input
               type="file"
               accept=".jpg,.jpeg,.png,.webp,.gif,image/*"
@@ -404,9 +457,6 @@ export default function DriverOrderProsesPage() {
               className="text-sm text-gray-600 dark:text-gray-300"
             />
             {proof && <p className="text-xs text-gray-500">File: {proof.name}</p>}
-            {!proof && (needsPickupProof || needsDeliveryProof) && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">Pilih file bukti terlebih dahulu sebelum mengirim.</p>
-            )}
           </div>
 
           <div className="flex items-center gap-3">

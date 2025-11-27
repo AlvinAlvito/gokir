@@ -28,6 +28,8 @@ type Order = {
   orderType: OrderType;
   customStoreName?: string | null;
   customStoreAddress?: string | null;
+  pickupRegion?: string | null;
+  dropoffRegion?: string | null;
   pickupAddress?: string | null;
   dropoffAddress?: string | null;
   menuItem?: { id: string; name: string; price: number; promoPrice?: number | null } | null;
@@ -52,6 +54,21 @@ const toProof = (path?: string | null) => {
   };
   const url = build();
   return url.replace(/ /g, "%20");
+};
+
+const parseRideMeta = (note?: string | null) => {
+  const pickupMap = note?.match(/Maps:\s*(https?:\S+)/i)?.[1] || null;
+  const dropoffMap = note?.match(/DropoffMap:\s*(https?:\S+)/i)?.[1] || null;
+  const pickupPhoto = note?.match(/PickupPhoto:\s*([^\s\n]+)/i)?.[1] || null;
+  const est = note?.match(/Estimasi harga:\s*([^\n]+)/i)?.[1] || null;
+  const cleaned = (note || "")
+    .replace(/Maps:\s*https?:\S+/gi, "")
+    .replace(/DropoffMap:\s*https?:\S+/gi, "")
+    .replace(/PickupPhoto:\s*\S+/gi, "")
+    .replace(/PickupProof:\s*\S+/gi, "")
+    .replace(/DeliveryProof:\s*\S+/gi, "")
+    .trim();
+  return { pickupMap, dropoffMap, pickupPhoto, estPrice: est, cleanedNote: cleaned };
 };
 
 const parseNote = (note?: string | null) => {
@@ -190,7 +207,12 @@ export default function CustomerOrdersPage() {
 
 type OrderCardProps = { order: Order };
 const OrderCard = ({ order }: OrderCardProps) => {
-  const { noteText, proofsPickup, proofsDelivery, rejectReason } = parseNote(order.note);
+  const parsed = parseNote(order.note);
+  const rideMeta = order.orderType === "RIDE" ? parseRideMeta(order.note) : null;
+  const noteText = rideMeta ? rideMeta.cleanedNote : parsed.noteText;
+  const proofsPickup = parsed.proofsPickup;
+  const proofsDelivery = parsed.proofsDelivery;
+  const rejectReason = parsed.rejectReason;
   const [reportOpen, setReportOpen] = useState(false);
   const [reportCategory, setReportCategory] = useState("driver");
   const [reportDetail, setReportDetail] = useState("");
@@ -247,7 +269,46 @@ const OrderCard = ({ order }: OrderCardProps) => {
           {order.dropoffAddress && <p className="text-sm text-gray-500 dark:text-gray-400">Tujuan: {order.dropoffAddress}</p>}
           {order.quantity ? <p className="text-sm text-gray-800 dark:text-white/90">Qty: {order.quantity}</p> : null}
           <p className="text-sm text-gray-800 dark:text-white/90">Pembayaran: {order.paymentMethod === "QRIS" ? "QRIS" : "Cash"}</p>
-          {noteText && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {noteText}</p>}
+          {rideMeta ? (
+            <div className="space-y-1">
+              {rideMeta.estPrice && <p className="text-xs text-gray-500 dark:text-gray-400">Estimasi harga: {rideMeta.estPrice}</p>}
+              <div className="flex flex-wrap gap-2">
+                {rideMeta.pickupMap && (
+                  <a
+                    href={rideMeta.pickupMap}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center rounded-lg bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-200"
+                  >
+                    Lihat Maps pickup
+                  </a>
+                )}
+                {rideMeta.dropoffMap && (
+                  <a
+                    href={rideMeta.dropoffMap}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center rounded-lg bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-200"
+                  >
+                    Lihat Maps tujuan
+                  </a>
+                )}
+                {rideMeta.pickupPhoto && (
+                  <a
+                    href={rideMeta.pickupPhoto.startsWith("http") ? rideMeta.pickupPhoto : `${API_URL}${rideMeta.pickupPhoto.startsWith("/") ? "" : "/"}${rideMeta.pickupPhoto}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center rounded-lg bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-200 dark:bg-white/10 dark:text-white/80"
+                  >
+                    Lihat foto pickup
+                  </a>
+                )}
+              </div>
+              {noteText && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {noteText}</p>}
+            </div>
+          ) : (
+            noteText && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {noteText}</p>
+          )}
           {rejectReason && <p className="text-xs text-red-500 dark:text-red-400">Alasan ditolak: {rejectReason}</p>}
         </div>
         <div className="flex flex-col items-end gap-2">

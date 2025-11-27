@@ -64,13 +64,20 @@ const typeLabel: Record<OrderType, string> = {
 };
 
 type StepItem = { key: Status; label: string; desc: string };
-const stepItems: StepItem[] = [
+const stepItemsFood: StepItem[] = [
   { key: "WAITING_STORE_CONFIRM", label: "Menunggu konfirmasi toko", desc: "Pesanan menunggu disetujui oleh toko." },
   { key: "CONFIRMED_COOKING", label: "Diproses toko", desc: "Pesanan kamu sedang dibuat oleh toko." },
   { key: "SEARCHING_DRIVER", label: "Mencari driver", desc: "Pesanan sudah selesai dibuat, sedang mencari driver." },
   { key: "DRIVER_ASSIGNED", label: "Driver ditemukan", desc: "Driver sudah ditemukan dan menjemput pesanan kamu." },
   { key: "ON_DELIVERY", label: "Sedang diantar", desc: "Pesanan sedang diantar ke lokasi tujuan kamu, pastikan alamat benar." },
   { key: "COMPLETED", label: "Selesai", desc: "Pesanan kamu sudah selesai diantarkan." },
+];
+
+const stepItemsRide: StepItem[] = [
+  { key: "SEARCHING_DRIVER", label: "Mencari driver", desc: "Sedang mencari driver untuk perjalananmu." },
+  { key: "DRIVER_ASSIGNED", label: "Driver ditemukan", desc: "Driver sudah ditemukan dan menjemput kamu." },
+  { key: "ON_DELIVERY", label: "Sedang diantar", desc: "Perjalanan sedang berlangsung, pastikan lokasi tujuan benar." },
+  { key: "COMPLETED", label: "Selesai", desc: "Perjalanan selesai." },
 ];
 
 const currency = (v?: number | null) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v ?? 0);
@@ -157,7 +164,8 @@ export default function CustomerOrderProsesPage() {
   useEffect(() => { fetchOrder(); }, [id]);
 
   const { noteText, proofsPickup, proofsDelivery } = parseNote(order?.note);
-  const currentStepIndex = useMemo(() => order ? stepItems.findIndex((s) => s.key === order.status) : -1, [order]);
+  const steps = order?.orderType === "RIDE" ? stepItemsRide : stepItemsFood;
+  const currentStepIndex = useMemo(() => order ? steps.findIndex((s) => s.key === order.status) : -1, [order, steps]);
 
   const stepDescOverride: Partial<Record<Status, string>> = {
     CONFIRMED_COOKING: "Pesanan kamu sedang dibuat oleh toko yaa",
@@ -240,7 +248,7 @@ export default function CustomerOrderProsesPage() {
           </div>
 
           <div className="space-y-3">
-            {stepItems.map((s: StepItem, idx: number) => {
+            {steps.map((s: StepItem, idx: number) => {
               const active = currentStepIndex >= idx && currentStepIndex !== -1;
               const desc = stepDescOverride[s.key] || s.desc;
 

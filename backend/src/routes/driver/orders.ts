@@ -138,6 +138,8 @@ router.get("/available", async (req: any, res) => {
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       customStoreName: true,
       customStoreAddress: true,
+      pickupRegion: true,
+      dropoffRegion: true,
       customRegion: true,
       pickupAddress: true,
       dropoffAddress: true,
@@ -149,6 +151,9 @@ router.get("/available", async (req: any, res) => {
       const sa = o.store.storeAvailability;
       if (sa.status !== "ACTIVE") return false;
       return regionMatch(sa.region, availability.region);
+    }
+    if (o.orderType === "RIDE") {
+      return regionMatch(o.pickupRegion, availability.region);
     }
     if (o.orderType === "FOOD_CUSTOM_STORE") {
       return regionMatch(o.customRegion, availability.region);
@@ -198,6 +203,8 @@ router.get("/active", async (req: any, res) => {
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       customStoreName: true,
       customStoreAddress: true,
+      pickupRegion: true,
+      dropoffRegion: true,
       pickupAddress: true,
       dropoffAddress: true,
     },
@@ -374,6 +381,8 @@ router.get("/history", async (req: any, res) => {
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       customStoreName: true,
       customStoreAddress: true,
+      pickupRegion: true,
+      dropoffRegion: true,
       pickupAddress: true,
       dropoffAddress: true,
     },
@@ -412,6 +421,8 @@ router.get("/:id", async (req: any, res) => {
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       customStoreName: true,
       customStoreAddress: true,
+      pickupRegion: true,
+      dropoffRegion: true,
       pickupAddress: true,
       dropoffAddress: true,
     },
@@ -451,6 +462,8 @@ router.get("/active", async (req: any, res) => {
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       customStoreName: true,
       customStoreAddress: true,
+      pickupRegion: true,
+      dropoffRegion: true,
       pickupAddress: true,
       dropoffAddress: true,
     },
@@ -481,6 +494,8 @@ router.post("/:id/claim", async (req: any, res) => {
         },
       },
       customRegion: true,
+      orderType: true,
+      pickupRegion: true,
     },
   });
 
@@ -493,7 +508,9 @@ router.post("/:id/claim", async (req: any, res) => {
     select: { region: true },
   });
 
-  const orderRegion = order.store?.storeAvailability?.region || order.customRegion;
+  const orderRegion = order.orderType === "RIDE"
+    ? order.pickupRegion
+    : (order.store?.storeAvailability?.region || order.customRegion);
   if (!driverAvail || !orderRegion || !regionMatch(orderRegion, driverAvail.region)) {
     return res.status(400).json({ ok: false, error: { message: "Wilayah tidak cocok atau driver tidak memiliki data availability." } });
   }

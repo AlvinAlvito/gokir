@@ -318,6 +318,8 @@ model CustomerOrder {
   customStoreName    String?
   customStoreAddress String?
   customRegion       DriverRegion?
+  pickupRegion       DriverRegion?
+  dropoffRegion      DriverRegion?
   pickupAddress      String?
   dropoffAddress     String?
   createdAt      DateTime @default(now())

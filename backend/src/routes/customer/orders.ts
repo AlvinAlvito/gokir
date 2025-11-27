@@ -34,6 +34,31 @@ const reportUpload = multer({
   },
 });
 
+const orderProofDir = path.join(process.cwd(), "uploads", "order-proofs");
+if (!fs.existsSync(orderProofDir)) fs.mkdirSync(orderProofDir, { recursive: true });
+const orderStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, orderProofDir),
+  filename: (_req, file, cb) => {
+    const rawExt = path.extname(file.originalname);
+    const guessedExt =
+      rawExt ||
+      (file.mimetype === "image/jpeg" ? ".jpg" :
+      file.mimetype === "image/png" ? ".png" :
+      file.mimetype === "image/webp" ? ".webp" :
+      file.mimetype === "image/gif" ? ".gif" : "");
+    const base = path.basename(file.originalname, rawExt).replace(/[^a-zA-Z0-9-_]/g, "");
+    cb(null, `${base || "pickup"}-${Date.now()}${guessedExt}`);
+  },
+});
+const orderUpload = multer({
+  storage: orderStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) return cb(new Error("Hanya file gambar yang diperbolehkan"));
+    cb(null, true);
+  },
+});
+
 const parseNote = (note?: string | null) => {
   const proofsPickup: string[] = [];
   const proofsDelivery: string[] = [];
@@ -78,12 +103,16 @@ const createSchema = z.object({
   customStoreName: z.string().optional(),
   customStoreAddress: z.string().optional(),
   customRegion: z.enum(["KAMPUS_SUTOMO", "KAMPUS_TUNTUNGAN", "KAMPUS_PANCING", "WILAYAH_LAINNYA"]).optional(),
+  pickupRegion: z.enum(["KAMPUS_SUTOMO", "KAMPUS_TUNTUNGAN", "KAMPUS_PANCING", "WILAYAH_LAINNYA"]).optional(),
+  dropoffRegion: z.enum(["KAMPUS_SUTOMO", "KAMPUS_TUNTUNGAN", "KAMPUS_PANCING", "WILAYAH_LAINNYA"]).optional(),
+  pickupMap: z.string().optional(),
+  dropoffMap: z.string().optional(),
   pickupAddress: z.string().optional(),
   dropoffAddress: z.string().optional(),
 });
 
 // POST /customer/orders
-router.post("/", async (req: any, res) => {
+router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
   const user = req.user!;
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -180,10 +209,48 @@ router.post("/", async (req: any, res) => {
     return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
     // store/menuItem dibiarkan null
   } else if (orderType === "RIDE") {
-    if (!pickupAddress || !dropoffAddress) {
-      return res.status(400).json({ ok: false, error: { message: "Pickup & dropoff wajib" } });
+    if (!pickupAddress || !dropoffAddress || !parsed.data.pickupRegion || !parsed.data.dropoffRegion) {
+      return res.status(400).json({ ok: false, error: { message: "Pickup/dropoff, wilayah pickup, wilayah tujuan wajib" } });
     }
     initialStatus = "SEARCHING_DRIVER";
+    const noteParts = [
+      note,
+      parsed.data.pickupMap ? `Maps: ${parsed.data.pickupMap}` : "",
+      parsed.data.dropoffMap ? `DropoffMap: ${parsed.data.dropoffMap}` : "",
+    ].filter(Boolean);
+    const pickupPhotoPath = req.file ? `/uploads/order-proofs/${req.file.filename}` : null;
+    if (pickupPhotoPath) noteParts.push(`PickupPhoto: ${pickupPhotoPath}`);
+
+    const order = await prisma.customerOrder.create({
+      data: {
+        customerId: user.id,
+        storeId: null,
+        menuItemId: null,
+        quantity: quantity ?? null,
+        note: noteParts.join("\n") || null,
+        paymentMethod,
+        status: initialStatus,
+        orderType,
+        pickupAddress,
+        dropoffAddress,
+        pickupRegion: parsed.data.pickupRegion,
+        dropoffRegion: parsed.data.dropoffRegion,
+      },
+      select: {
+        id: true,
+        status: true,
+        paymentMethod: true,
+        quantity: true,
+        note: true,
+        createdAt: true,
+        orderType: true,
+        pickupAddress: true,
+        dropoffAddress: true,
+        pickupRegion: true,
+        dropoffRegion: true,
+      },
+    });
+    return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
   }
 
   const order = await prisma.customerOrder.create({

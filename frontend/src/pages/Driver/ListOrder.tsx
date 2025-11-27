@@ -81,10 +81,22 @@ const toAbs = (rel?: string | null) => {
   return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
 };
 
-const extractMap = (note?: string | null) => {
-  if (!note) return null;
-  const m = note.match(/Maps:\s*(https?:\S+)/i);
-  return m ? m[1] : null;
+const parseRideNote = (note?: string | null) => {
+  const pickupMapMatch = note?.match(/Maps:\s*(https?:\S+)/i);
+  const dropoffMapMatch = note?.match(/DropoffMap:\s*(https?:\S+)/i);
+  const pickupPhotoMatch = note?.match(/PickupPhoto:\s*([^\s\n]+)/i);
+  let cleaned = note || "";
+  cleaned = cleaned
+    .replace(/Maps:\s*https?:\S+/gi, "")
+    .replace(/DropoffMap:\s*https?:\S+/gi, "")
+    .replace(/PickupPhoto:\s*\S+/gi, "")
+    .trim();
+  return {
+    pickupMap: pickupMapMatch ? pickupMapMatch[1] : null,
+    dropoffMap: dropoffMapMatch ? dropoffMapMatch[1] : null,
+    pickupPhoto: pickupPhotoMatch ? pickupPhotoMatch[1] : null,
+    noteText: cleaned,
+  };
 };
 
 export default function DriverListOrderPage() {
@@ -145,7 +157,7 @@ export default function DriverListOrderPage() {
 
   const renderCard = (o: Order) => {
     const total = (o.menuItem?.promoPrice ?? o.menuItem?.price ?? 0) * (o.quantity ?? 1);
-    const mapUrl = extractMap(o.note);
+    const rideNote = o.orderType === "RIDE" ? parseRideNote(o.note) : null;
     return (
       <div key={o.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
@@ -189,24 +201,49 @@ export default function DriverListOrderPage() {
             </div>
           )}
 
-          {o.note && (
-            <div>
-              <p className="font-semibold">Catatan</p>
-              <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{o.note}</p>
-            </div>
-          )}
-          {mapUrl && (
-            <div>
-              <p className="text-xs text-gray-500">Lokasi Maps</p>
-              <a
-                href={mapUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-brand-600 hover:underline"
-              >
-                Buka di Google Maps
-              </a>
-            </div>
+          {o.orderType === "RIDE" ? (
+            <>
+              {rideNote?.noteText && (
+                <div>
+                  <p className="font-semibold">Catatan</p>
+                  <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{rideNote.noteText}</p>
+                </div>
+              )}
+              {(rideNote?.pickupMap || rideNote?.dropoffMap) && (
+                <div className="space-y-1">
+                  {rideNote.pickupMap && (
+                    <a href={rideNote.pickupMap} target="_blank" rel="noreferrer" className="text-sm text-brand-600 hover:underline">
+                      Buka lokasi pickup (Maps)
+                    </a>
+                  )}
+                  {rideNote.dropoffMap && (
+                    <a href={rideNote.dropoffMap} target="_blank" rel="noreferrer" className="text-sm text-brand-600 hover:underline">
+                      Buka lokasi tujuan (Maps)
+                    </a>
+                  )}
+                </div>
+              )}
+              {rideNote?.pickupPhoto && (
+                <div className="space-y-1">
+                  <p className="text-xs text-gray-500">Foto pickup</p>
+                  <a
+                    href={rideNote.pickupPhoto.startsWith("http") ? rideNote.pickupPhoto : `${API_URL}${rideNote.pickupPhoto.startsWith("/") ? "" : "/"}${rideNote.pickupPhoto}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-brand-600 hover:underline"
+                  >
+                    Lihat foto pickup
+                  </a>
+                </div>
+              )}
+            </>
+          ) : (
+            o.note && (
+              <div>
+                <p className="font-semibold">Catatan</p>
+                <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{o.note}</p>
+              </div>
+            )
           )}
         </div>
 
