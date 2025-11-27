@@ -135,6 +135,8 @@ export default function CustomerOrderProsesPage() {
   const [reportSending, setReportSending] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const fetchOrder = async () => {
     const endpoint = id ? `/customer/orders/${id}` : "/customer/orders/active";
@@ -193,6 +195,25 @@ export default function CustomerOrderProsesPage() {
     } catch (e: any) {
       setReportSending(false);
       setReportError(e.message || "Gagal mengirim laporan");
+    }
+  };
+
+  const cancelOrder = async () => {
+    if (!order) return;
+    try {
+      setCancelLoading(true);
+      const r = await fetch(`${API_URL}/customer/orders/${order.id}/cancel`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal membatalkan pesanan");
+      setCancelOpen(false);
+      navigate("/orders");
+    } catch (e: any) {
+      setError(e.message || "Gagal membatalkan pesanan");
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -321,6 +342,11 @@ export default function CustomerOrderProsesPage() {
 
           <div className="flex items-center gap-3">
             <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
+            {order.orderType === "FOOD_CUSTOM_STORE" && order.status === "SEARCHING_DRIVER" && (
+              <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)} className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20">
+                Batalkan pesanan
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -402,6 +428,28 @@ export default function CustomerOrderProsesPage() {
           </div>
           <div className="flex justify-center">
             <Button size="sm" onClick={() => setReportSuccess(false)}>Tutup</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={cancelOpen} onClose={() => setCancelOpen(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-4">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.485 0l6.518 11.59A2 2 0 0 1 16.518 17H3.482a2 2 0 0 1-1.742-3.311l6.517-11.59Z" clipRule="evenodd" />
+              <path d="M11 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z" />
+              <path stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" d="M10 7v3" />
+            </svg>
+          </div>
+          <div className="space-y-2 text-center">
+            <p className="text-lg font-semibold text-gray-800 dark:text-white/90">Batalkan pesanan?</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">Pesanan custom ini masih mencari driver. Yakin ingin membatalkan?</p>
+          </div>
+          <div className="flex justify-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => setCancelOpen(false)}>Batal</Button>
+            <Button size="sm" onClick={cancelOrder} disabled={cancelLoading} className="bg-red-500 hover:bg-red-600 text-white">
+              {cancelLoading ? "Memproses..." : "Batalkan"}
+            </Button>
           </div>
         </div>
       </Modal>

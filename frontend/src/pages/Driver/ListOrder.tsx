@@ -81,6 +81,12 @@ const toAbs = (rel?: string | null) => {
   return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
 };
 
+const extractMap = (note?: string | null) => {
+  if (!note) return null;
+  const m = note.match(/Maps:\s*(https?:\S+)/i);
+  return m ? m[1] : null;
+};
+
 export default function DriverListOrderPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
@@ -139,6 +145,7 @@ export default function DriverListOrderPage() {
 
   const renderCard = (o: Order) => {
     const total = (o.menuItem?.promoPrice ?? o.menuItem?.price ?? 0) * (o.quantity ?? 1);
+    const mapUrl = extractMap(o.note);
     return (
       <div key={o.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
@@ -186,6 +193,19 @@ export default function DriverListOrderPage() {
             <div>
               <p className="font-semibold">Catatan</p>
               <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{o.note}</p>
+            </div>
+          )}
+          {mapUrl && (
+            <div>
+              <p className="text-xs text-gray-500">Lokasi Maps</p>
+              <a
+                href={mapUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-brand-600 hover:underline"
+              >
+                Buka di Google Maps
+              </a>
             </div>
           )}
         </div>

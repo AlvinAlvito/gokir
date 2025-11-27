@@ -77,6 +77,7 @@ const createSchema = z.object({
   paymentMethod: z.enum(["CASH", "QRIS"]).default("CASH"),
   customStoreName: z.string().optional(),
   customStoreAddress: z.string().optional(),
+  customRegion: z.enum(["KAMPUS_SUTOMO", "KAMPUS_TUNTUNGAN", "KAMPUS_PANCING", "WILAYAH_LAINNYA"]).optional(),
   pickupAddress: z.string().optional(),
   dropoffAddress: z.string().optional(),
 });
@@ -143,6 +144,40 @@ router.post("/", async (req: any, res) => {
     if (!customStoreName || !customStoreAddress || !quantity) {
       return res.status(400).json({ ok: false, error: { message: "Nama & alamat toko custom serta quantity wajib" } });
     }
+    initialStatus = "SEARCHING_DRIVER";
+    const customRegion = parsed.data.customRegion || "WILAYAH_LAINNYA";
+    const order = await prisma.customerOrder.create({
+      data: {
+        customerId: user.id,
+        storeId: null,
+        menuItemId: null,
+        quantity: quantity ?? null,
+        note,
+        paymentMethod,
+        status: initialStatus,
+        orderType,
+        customStoreName,
+        customStoreAddress,
+        customRegion,
+        pickupAddress,
+        dropoffAddress,
+      },
+      select: {
+        id: true,
+        status: true,
+        paymentMethod: true,
+        quantity: true,
+        note: true,
+        createdAt: true,
+        orderType: true,
+        customStoreName: true,
+        customStoreAddress: true,
+        customRegion: true,
+        pickupAddress: true,
+        dropoffAddress: true,
+      },
+    });
+    return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
     // store/menuItem dibiarkan null
   } else if (orderType === "RIDE") {
     if (!pickupAddress || !dropoffAddress) {
@@ -221,6 +256,33 @@ router.post("/:id/report", reportUpload.single("proof"), async (req: any, res) =
   });
 
   return res.json({ ok: true, data: { report } });
+});
+
+// PATCH /customer/orders/:id/cancel -> batalkan pesanan custom yang masih mencari driver
+router.patch("/:id/cancel", async (req: any, res) => {
+  const user = req.user!;
+  const order = await prisma.customerOrder.findFirst({
+    where: {
+      id: req.params.id,
+      customerId: user.id,
+    },
+    select: { id: true, status: true, orderType: true },
+  });
+  if (!order) return res.status(404).json({ ok: false, error: { message: "Order tidak ditemukan" } });
+
+  if (order.orderType !== "FOOD_CUSTOM_STORE") {
+    return res.status(400).json({ ok: false, error: { message: "Pembatalan hanya untuk pesanan custom" } });
+  }
+  if (order.status !== "SEARCHING_DRIVER") {
+    return res.status(400).json({ ok: false, error: { message: "Pesanan tidak bisa dibatalkan pada status ini" } });
+  }
+
+  const updated = await prisma.customerOrder.update({
+    where: { id: order.id },
+    data: { status: "CANCELLED" },
+    select: { id: true, status: true },
+  });
+  return res.json({ ok: true, data: { order: updated } });
 });
 
 // GET /customer/orders

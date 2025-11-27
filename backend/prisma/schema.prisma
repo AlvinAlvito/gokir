@@ -317,6 +317,7 @@ model CustomerOrder {
   orderType      CustomerOrderType @default(FOOD_EXISTING_STORE)
   customStoreName    String?
   customStoreAddress String?
+  customRegion       DriverRegion?
   pickupAddress      String?
   dropoffAddress     String?
   createdAt      DateTime @default(now())

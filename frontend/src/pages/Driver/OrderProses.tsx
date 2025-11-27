@@ -1,9 +1,8 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
-import Input from "../../components/form/input/InputField";
 import { Modal } from "../../components/ui/modal";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
@@ -29,14 +28,9 @@ type Order = {
   note?: string | null;
   createdAt: string;
   customer?: { id: string; username?: string | null; email?: string | null; phone?: string | null } | null;
-  store?: {
-    id: string;
-    storeProfile?: { storeName?: string | null; photoUrl?: string | null; address?: string | null } | null;
-    storeAvailability?: { region?: string | null } | null;
-  } | null;
+  driver?: { id: string; username?: string | null; email?: string | null; phone?: string | null; driverProfile?: { facePhotoUrl?: string | null } | null } | null;
+  store?: { id: string; storeProfile?: { storeName?: string | null; photoUrl?: string | null; address?: string | null } | null } | null;
   menuItem?: { id: string; name: string; price?: number | null; promoPrice?: number | null } | null;
-  customStoreName?: string | null;
-  customStoreAddress?: string | null;
   pickupAddress?: string | null;
   dropoffAddress?: string | null;
 };
@@ -46,7 +40,7 @@ const statusLabel: Record<Status, string> = {
   REJECTED: "Ditolak",
   CONFIRMED_COOKING: "Diproses toko",
   SEARCHING_DRIVER: "Mencari driver",
-  DRIVER_ASSIGNED: "Sudah diambil",
+  DRIVER_ASSIGNED: "Driver ditemukan",
   ON_DELIVERY: "Sedang diantar",
   COMPLETED: "Selesai",
   CANCELLED: "Dibatalkan",
@@ -57,8 +51,8 @@ const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "su
   REJECTED: "error",
   CONFIRMED_COOKING: "primary",
   SEARCHING_DRIVER: "info",
-  DRIVER_ASSIGNED: "success",
-  ON_DELIVERY: "info",
+  DRIVER_ASSIGNED: "info",
+  ON_DELIVERY: "success",
   COMPLETED: "success",
   CANCELLED: "error",
 };
@@ -68,6 +62,16 @@ const typeLabel: Record<OrderType, string> = {
   FOOD_CUSTOM_STORE: "Pesan makanan (toko luar)",
   RIDE: "Antar jemput",
 };
+
+type StepItem = { key: Status; label: string; desc: string };
+const stepItems: StepItem[] = [
+  { key: "WAITING_STORE_CONFIRM", label: "Menunggu konfirmasi toko", desc: "Pesanan menunggu disetujui oleh toko." },
+  { key: "CONFIRMED_COOKING", label: "Diproses toko", desc: "Pesanan kamu sedang dibuat oleh toko." },
+  { key: "SEARCHING_DRIVER", label: "Mencari driver", desc: "Pesanan sudah selesai dibuat, sedang mencari driver." },
+  { key: "DRIVER_ASSIGNED", label: "Driver ditemukan", desc: "Driver sudah ditemukan dan menjemput pesanan kamu." },
+  { key: "ON_DELIVERY", label: "Sedang diantar", desc: "Pesanan sedang diantar ke lokasi tujuan kamu, pastikan alamat benar." },
+  { key: "COMPLETED", label: "Selesai", desc: "Pesanan kamu sudah selesai diantarkan." },
+];
 
 const currency = (v?: number | null) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v ?? 0);
 const formatDate = (v: string) => new Date(v).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
@@ -88,6 +92,12 @@ const toProof = (path?: string | null) => {
   };
   const url = build();
   return url.replace(/ /g, "%20");
+};
+
+const extractMap = (note?: string | null) => {
+  if (!note) return null;
+  const m = note.match(/Maps:\s*(https?:\S+)/i);
+  return m ? m[1] : null;
 };
 
 const parseNote = (note?: string | null) => {
@@ -124,8 +134,8 @@ export default function DriverOrderProsesPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [proof, setProof] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [proof, setProof] = useState<File | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportCategory, setReportCategory] = useState("driver");
   const [reportDetail, setReportDetail] = useState("");
@@ -133,7 +143,6 @@ export default function DriverOrderProsesPage() {
   const [reportSending, setReportSending] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState(false);
-  const [confirmCompleteOpen, setConfirmCompleteOpen] = useState(false);
 
   const fetchOrder = async () => {
     const endpoint = id ? `/driver/orders/${id}` : "/driver/orders/active";
@@ -154,10 +163,23 @@ export default function DriverOrderProsesPage() {
   useEffect(() => { fetchOrder(); }, [id]);
 
   const { noteText, proofsPickup, proofsDelivery } = parseNote(order?.note);
+  const mapUrl = extractMap(order?.note);
+  const currentStepIndex = useMemo(() => order ? stepItems.findIndex((s) => s.key === order.status) : -1, [order]);
+  const needsPickupProof = order?.status === "DRIVER_ASSIGNED";
+  const needsDeliveryProof = order?.status === "ON_DELIVERY";
 
-  const submitPickupProof = async () => {
-    if (!order?.id || !proof) {
-      setError("Bukti pengambilan wajib diupload.");
+  const stepDescOverride: Partial<Record<Status, string>> = {
+    CONFIRMED_COOKING: "Pesanan kamu sedang dibuat oleh toko yaa",
+    SEARCHING_DRIVER: "Pesanan kamu sudah selesai, dan sedang mencari driver untuk mengantar pesanan kamu.",
+    DRIVER_ASSIGNED: "Driver sudah ditemukan dan sedang menjemput pesanan kamu",
+    ON_DELIVERY: "Pesanan sedang diantar ke lokasi tujuan anda, pastikan alamat anda benar yaa",
+    COMPLETED: "Pesanan kamu sudah selesai diantarkan",
+  };
+
+  const handlePickup = async () => {
+    if (!order?.id) return;
+    if (!proof) {
+      setError("Unggah bukti pengambilan terlebih dahulu.");
       return;
     }
     try {
@@ -171,27 +193,22 @@ export default function DriverOrderProsesPage() {
         body: fd,
       });
       const j = await r.json();
-      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal mengirim bukti");
-      setOrder(j.data.order || order);
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal mengunggah bukti");
       setProof(null);
+      fetchOrder();
     } catch (e: any) {
-      setError(e.message || "Terjadi kesalahan");
+      setError(e.message || "Gagal mengunggah bukti");
     } finally {
       setUploading(false);
     }
   };
 
-  const submitDeliveryProof = async () => {
-    if (!order?.id || !proof) {
-      setError("Bukti serah terima wajib diupload.");
+  const handleComplete = async () => {
+    if (!order?.id) return;
+    if (!proof) {
+      setError("Unggah bukti serah terima terlebih dahulu.");
       return;
     }
-    // Konfirmasi sebelum submit
-    setConfirmCompleteOpen(true);
-  };
-
-  const confirmSubmitDeliveryProof = async () => {
-    if (!order?.id || !proof) return;
     try {
       setUploading(true);
       setError(null);
@@ -203,13 +220,11 @@ export default function DriverOrderProsesPage() {
         body: fd,
       });
       const j = await r.json();
-      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal menyelesaikan order");
-      setOrder(j.data.order || order);
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal mengunggah bukti");
       setProof(null);
-      setConfirmCompleteOpen(false);
       navigate("/driver/orders");
     } catch (e: any) {
-      setError(e.message || "Terjadi kesalahan");
+      setError(e.message || "Gagal menyelesaikan order");
     } finally {
       setUploading(false);
     }
@@ -248,12 +263,12 @@ export default function DriverOrderProsesPage() {
 
   return (
     <>
-      <PageMeta title="Order Proses" description="Detail order yang sedang Anda tangani" />
+      <PageMeta title="Order Aktif" description="Detail order yang sedang diproses" />
       {error && <div className="text-sm text-amber-600 dark:text-amber-400">{error}</div>}
       {loading && <p className="text-sm text-gray-500">Memuat...</p>}
       {!loading && !order && (
         <div className="text-sm text-gray-500 space-y-2">
-          <p>{error ? "" : "Order tidak ditemukan atau tidak ada order aktif."}</p>
+          <p>{error ? "" : "Order tidak ditemukan atau belum ada order aktif."}</p>
           <Button size="sm" variant="outline" onClick={() => navigate("/driver/orders")}>Lihat riwayat orderan</Button>
         </div>
       )}
@@ -268,148 +283,148 @@ export default function DriverOrderProsesPage() {
             <Badge color={statusBadge[order.status]}>{statusLabel[order.status]}</Badge>
           </div>
 
-          {order.store && (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Toko</p>
-              <div className="flex items-center gap-3">
-                <img src={toAbs(order.store.storeProfile?.photoUrl)} className="w-12 h-12 rounded-lg object-cover border border-gray-200 dark:border-gray-800" />
-                <div>
-                  <p className="font-semibold text-gray-800 dark:text-white/90">{order.store.storeProfile?.storeName || "Toko"}</p>
-                  <p className="text-xs text-gray-500">{order.store.storeProfile?.address || "Alamat tidak tersedia"}</p>
+          <div className="space-y-3">
+            {stepItems.map((s: StepItem, idx: number) => {
+              const active = currentStepIndex >= idx && currentStepIndex !== -1;
+              const desc = stepDescOverride[s.key] || s.desc;
+
+              return (
+                <div
+                  key={s.key}
+                  className={`rounded-xl border p-4 text-sm space-y-2 ${active ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10" : "border-gray-200 dark:border-gray-800"}`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className={`font-semibold ${active ? "text-emerald-700 dark:text-emerald-300" : "text-gray-800 dark:text-white/90"}`}>{s.label}</p>
+                      <p className="text-xs text-gray-500 whitespace-pre-line">{desc}</p>
+                    </div>
+                  </div>
+
+                  {s.key === "DRIVER_ASSIGNED" && order.customer && (
+                    <div className="space-y-2 text-gray-700 dark:text-white/90">
+                      <p className="text-sm font-semibold">Detail Customer</p>
+                      <div className="text-xs">
+                        <p>{order.customer.username || "Customer"}</p>
+                        {order.customer.phone && <p className="text-gray-500">{order.customer.phone}</p>}
+                        {order.customer.email && <p className="text-gray-500">{order.customer.email}</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {s.key === "DRIVER_ASSIGNED" && order.store && (
+                    <div className="space-y-2 text-gray-700 dark:text-white/90">
+                      <p className="text-sm font-semibold">Detail Toko</p>
+                      <div className="flex items-center gap-3">
+                        <img src={toAbs(order.store.storeProfile?.photoUrl)} className="w-12 h-12 rounded-lg object-cover border border-gray-200 dark:border-gray-800" />
+                        <div>
+                          <p className="font-semibold text-gray-800 dark:text-white/90">{order.store.storeProfile?.storeName || "Toko"}</p>
+                          <p className="text-xs text-gray-500">{order.store.storeProfile?.address || "Alamat tidak tersedia"}</p>
+                          {mapUrl && (
+                            <a href={mapUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">Buka lokasi (Maps)</a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {s.key === "ON_DELIVERY" && order.dropoffAddress && (
+                    <div className="space-y-2 text-gray-700 dark:text-white/90">
+                      <p className="text-sm font-semibold">Lokasi Pengantaran</p>
+                      <p>{order.dropoffAddress}</p>
+                      {mapUrl && (
+                        <a href={mapUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">Buka lokasi (Maps)</a>
+                      )}
+                    </div>
+                  )}
+
+                  {s.key === "WAITING_STORE_CONFIRM" && order.store && (
+                    <div className="space-y-2 text-gray-700 dark:text-white/90">
+                      <p className="text-sm font-semibold">Detail Toko</p>
+                      <p className="font-semibold text-gray-800 dark:text-white/90">{order.store.storeProfile?.storeName || "Toko"}</p>
+                      <p className="text-xs text-gray-500">{order.store.storeProfile?.address || "Alamat tidak tersedia"}</p>
+                    </div>
+                  )}
+
+                  {s.key === "WAITING_STORE_CONFIRM" && order.menuItem && (
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold">Detail Menu</p>
+                      <p>{order.menuItem.name} x {order.quantity ?? 1}</p>
+                      <p className="text-xs text-gray-500">Perkiraan: {currency((order.menuItem.promoPrice ?? order.menuItem.price ?? 0) * (order.quantity ?? 1))}</p>
+                      <p className="text-xs text-gray-500">Catatan: {noteText || "-"}</p>
+                      {mapUrl && (
+                        <a href={mapUrl} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">Buka lokasi (Maps)</a>
+                      )}
+                    </div>
+                  )}
+
+                  {s.key === "ON_DELIVERY" && proofsPickup.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">Bukti pengambilan</p>
+                      <div className="flex flex-wrap gap-3">
+                        {proofsPickup.map((p) => {
+                          const src = toProof(p);
+                          return src ? (
+                            <a key={src} href={src} target="_blank" rel="noreferrer">
+                              <img src={src} alt="Bukti pengambilan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                            </a>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {s.key === "COMPLETED" && proofsDelivery.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">Bukti serah terima</p>
+                      <div className="flex flex-wrap gap-3">
+                        {proofsDelivery.map((p) => {
+                          const src = toProof(p);
+                          return src ? (
+                            <a key={src} href={src} target="_blank" rel="noreferrer">
+                              <img src={src} alt="Bukti serah terima" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
+                            </a>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-          )}
+              );
+            })}
+          </div>
 
-          <div className="space-y-2 text-sm text-gray-700 dark:text-white/90">
-            {order.menuItem && (
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Menu</p>
-                <p>{order.menuItem.name} x {order.quantity ?? 1}</p>
-                <p className="text-xs text-gray-500">Perkiraan: {currency((order.menuItem.promoPrice ?? order.menuItem.price ?? 0) * (order.quantity ?? 1))}</p>
-              </div>
-            )}
-
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Customer</p>
-              <p>{order.customer?.username || "Tanpa nama"}</p>
-              {order.customer?.phone && (
-                <a className="text-xs text-brand-500 hover:underline" href={waLink(order.customer.phone) || "#"} target="_blank" rel="noreferrer">
-                  Chat WhatsApp
-                </a>
-              )}
-              {order.customer?.email && <p className="text-xs text-gray-500">{order.customer.email}</p>}
-            </div>
-
-            {order.pickupAddress && (
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Pickup</p>
-                <p>{order.pickupAddress}</p>
-              </div>
-            )}
-            {order.dropoffAddress && (
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Detail Drop-off</p>
-                <p>{order.dropoffAddress}</p>
-                {proofsPickup.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-500">Bukti pengambilan</p>
-                    <div className="flex flex-wrap gap-3">
-                      {proofsPickup.map((p) => {
-                    const src = toProof(p);
-                    return src ? (
-                      <a key={src} href={src} target="_blank" rel="noreferrer">
-                        <img src={src} alt="Bukti pengambilan" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
-                      </a>
-                    ) : null;
-                  })}
-                </div>
-              </div>
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-gray-800 dark:text-white/90">
+              {needsPickupProof ? "Upload bukti pickup" : needsDeliveryProof ? "Upload bukti serah terima" : "Upload bukti"}
+            </p>
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,.gif,image/*"
+              onChange={(e: any) => setProof(e.target.files?.[0] || null)}
+              className="text-sm text-gray-600 dark:text-gray-300"
+            />
+            {proof && <p className="text-xs text-gray-500">File: {proof.name}</p>}
+            {!proof && (needsPickupProof || needsDeliveryProof) && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">Pilih file bukti terlebih dahulu sebelum mengirim.</p>
             )}
           </div>
-            )}
 
-            {noteText && (
-              <div className="space-y-1">
-                <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Catatan</p>
-                <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteText}</p>
-              </div>
+          <div className="flex items-center gap-3">
+            {order.status === "DRIVER_ASSIGNED" && (
+              <Button size="sm" onClick={handlePickup} disabled={uploading || !proof}>
+                {uploading ? "Memproses..." : "Kirim bukti pickup"}
+              </Button>
             )}
-
-            {proofsDelivery.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-xs text-gray-500">Bukti serah terima</p>
-                <div className="flex flex-wrap gap-3">
-                {proofsDelivery.map((p) => {
-                  const src = toProof(p);
-                  return src ? (
-                    <a key={src} href={src} target="_blank" rel="noreferrer">
-                      <img src={src} alt="Bukti serah terima" className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800" />
-                    </a>
-                  ) : null;
-                })}
-              </div>
-            </div>
-          )}
+            {order.status === "ON_DELIVERY" && (
+              <Button size="sm" onClick={handleComplete} disabled={uploading || !proof}>
+                {uploading ? "Memproses..." : "Kirim bukti serah terima"}
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
           </div>
+        </div>
+      )}
 
-          {order.status === "DRIVER_ASSIGNED" && (
-            <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5">
-              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Bukti pengambilan</p>
-              <Input
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp,.gif,image/*"
-                onChange={(e: any) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return setProof(null);
-                  if (!file.type.startsWith("image/")) {
-                    setError("Hanya file gambar (jpg, jpeg, png, webp, gif) yang diizinkan.");
-                    setProof(null);
-                    return;
-                  }
-                  setError(null);
-                  setProof(file);
-                }}
-              />
-              <div className="flex items-center gap-3">
-                <Button size="sm" onClick={submitPickupProof} disabled={uploading || !proof}>
-                  {uploading ? "Mengirim..." : "Kirim & antar pesanan"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {order.status === "ON_DELIVERY" && (
-            <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5">
-              <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Bukti serah terima</p>
-              <Input
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp,.gif,image/*"
-                onChange={(e: any) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return setProof(null);
-                  if (!file.type.startsWith("image/")) {
-                    setError("Hanya file gambar (jpg, jpeg, png, webp, gif) yang diizinkan.");
-                    setProof(null);
-                    return;
-                  }
-                  setError(null);
-                  setProof(file);
-                }}
-              />
-              <div className="flex items-center gap-3">
-                <Button size="sm" onClick={submitDeliveryProof} disabled={uploading || !proof}>
-                  {uploading ? "Mengirim..." : "Selesaikan order"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-      <div className="flex items-center gap-3">
-        <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
-      </div>
-    </div>
-  )}
       <Modal isOpen={reportOpen} onClose={() => setReportOpen(false)} className="max-w-lg m-4">
         <div className="p-5 space-y-4">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Laporkan Transaksi</h3>
@@ -431,7 +446,7 @@ export default function DriverOrderProsesPage() {
               <textarea
                 value={reportDetail}
                 onChange={(e) => setReportDetail(e.target.value)}
-                placeholder="Contoh: customer tidak merespon, transaksi tidak dapat diselesaikan."
+                placeholder="Contoh: driver membawa lari makanan saya dan tidak diantar."
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90"
                 rows={3}
               />
@@ -488,19 +503,6 @@ export default function DriverOrderProsesPage() {
           </div>
           <div className="flex justify-center">
             <Button size="sm" onClick={() => setReportSuccess(false)}>Tutup</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal isOpen={confirmCompleteOpen} onClose={() => setConfirmCompleteOpen(false)} className="max-w-sm m-4">
-        <div className="p-5 space-y-4 text-center">
-          <p className="text-lg font-semibold text-gray-800 dark:text-white/90">Konfirmasi serah terima</p>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Apakah anda yakin pesanan sudah diantar kepada customer yang benar? jika iya maka transaksi dianggap selesai.
-          </p>
-          <div className="flex justify-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => setConfirmCompleteOpen(false)}>Batal</Button>
-            <Button size="sm" onClick={confirmSubmitDeliveryProof} disabled={uploading}>{uploading ? "Mengirim..." : "Selesai"}</Button>
           </div>
         </div>
       </Modal>

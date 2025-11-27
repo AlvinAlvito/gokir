@@ -10,7 +10,16 @@ import { Modal } from "../../components/ui/modal";
 const API_URL = import.meta.env.VITE_API_URL as string;
 
 type CartItem = { itemId: string; name: string; price: number; promoPrice?: number | null; qty: number; photoUrl?: string | null };
-type CartStore = { storeProfileId: string; storeName?: string | null; storePhotoUrl?: string | null; items: CartItem[] };
+type CartStore = {
+  storeProfileId: string;
+  storeName?: string | null;
+  storePhotoUrl?: string | null;
+  items: CartItem[];
+  orderType?: "FOOD_EXISTING_STORE" | "FOOD_CUSTOM_STORE";
+  customStoreName?: string | null;
+  customStoreAddress?: string | null;
+  customRegion?: "KAMPUS_SUTOMO" | "KAMPUS_TUNTUNGAN" | "KAMPUS_PANCING" | "WILAYAH_LAINNYA";
+};
 type CartState = Record<string, CartStore>;
 
 type CheckoutModal = {
@@ -88,27 +97,51 @@ export default function CustomerCartPage() {
     if (!modal.storeId) return;
     const entry = cart[modal.storeId];
     if (!entry || entry.items.length === 0) return;
-    const noteCombined = modal.maps ? [modal.note, `Maps: ${modal.maps}`].filter(Boolean).join("\n") : modal.note;
+    const orderType = entry.orderType || "FOOD_EXISTING_STORE";
+    const hasMaps = modal.maps ? `Maps: ${modal.maps}` : "";
+
     try {
       setModal((p) => ({ ...p, submitting: true }));
       setError(null);
       for (const item of entry.items) {
-        const r = await fetch(`${API_URL}/customer/orders`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderType: "FOOD_EXISTING_STORE",
-            storeProfileId: entry.storeProfileId,
-            menuItemId: item.itemId,
-            quantity: item.qty,
-            note: noteCombined || undefined,
-            paymentMethod: modal.payment,
-            dropoffAddress: modal.address || undefined,
-          }),
-        });
-        const j = await r.json();
-        if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal membuat order");
+        if (orderType === "FOOD_CUSTOM_STORE") {
+          const noteCombined = [modal.note, `Menu: ${item.name} x ${item.qty} @ ${item.price}`, hasMaps].filter(Boolean).join("\n");
+          const r = await fetch(`${API_URL}/customer/orders`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderType: "FOOD_CUSTOM_STORE",
+              customStoreName: entry.customStoreName || entry.storeName,
+              customStoreAddress: entry.customStoreAddress || modal.address || modal.maps || "",
+              customRegion: entry.customRegion || "WILAYAH_LAINNYA",
+              quantity: item.qty,
+              note: noteCombined || undefined,
+              paymentMethod: modal.payment,
+              dropoffAddress: modal.address || undefined,
+            }),
+          });
+          const j = await r.json();
+          if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal membuat order");
+        } else {
+          const noteCombined = hasMaps ? [modal.note, hasMaps].filter(Boolean).join("\n") : modal.note;
+          const r = await fetch(`${API_URL}/customer/orders`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderType: "FOOD_EXISTING_STORE",
+              storeProfileId: entry.storeProfileId,
+              menuItemId: item.itemId,
+              quantity: item.qty,
+              note: noteCombined || undefined,
+              paymentMethod: modal.payment,
+              dropoffAddress: modal.address || undefined,
+            }),
+          });
+          const j = await r.json();
+          if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal membuat order");
+        }
       }
       setMsg("Pesanan berhasil dibuat.");
       const copy = { ...cart };
@@ -149,19 +182,20 @@ export default function CustomerCartPage() {
         <div className="space-y-6">
           {cartStores.map((s) => {
             const subtotal = s.items.reduce((acc, it) => acc + (it.promoPrice ?? it.price) * it.qty, 0);
+            const isCustom = (s.orderType || "FOOD_EXISTING_STORE") === "FOOD_CUSTOM_STORE";
             return (
               <div key={s.storeProfileId} className="p-5 rounded-3xl border border-gray-200 bg-white shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] space-y-4">
                 <div className="flex items-center gap-3">
                   <img src={toAbs(s.storePhotoUrl)} className="w-12 h-12 rounded-xl object-cover border border-gray-200 dark:border-gray-800" alt={s.storeName || "Store"} />
                   <div>
-                    <p className="font-semibold text-gray-800 dark:text-white/90">{s.storeName || "Toko"}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{s.items.length} item</p>
+                    <p className="font-semibold text-gray-800 dark:text-white/90">{s.storeName || (isCustom ? "Pesanan custom" : "Toko")}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{isCustom ? s.customStoreAddress || "Alamat custom" : `${s.items.length} item`}</p>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  {s.items.map((it) => (
-                    <div key={it.itemId} className="flex items-center justify-between gap-3 border border-gray-100 dark:border-gray-800 rounded-xl p-3">
+                  {s.items.map((it, idx) => (
+                    <div key={it.itemId || idx} className="flex items-center justify-between gap-3 border border-gray-100 dark:border-gray-800 rounded-xl p-3">
                       <div className="flex items-center gap-3">
                         <img src={toAbs(it.photoUrl)} className="w-12 h-12 rounded-lg object-cover border border-gray-200 dark:border-gray-800" alt={it.name} />
                         <div>

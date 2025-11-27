@@ -94,6 +94,12 @@ const withParsedNote = <T extends { note?: string | null }>(order: T) => ({
   ...parseNote(order.note),
 });
 
+const regionMatch = (orderRegion?: any, driverRegion?: any) => {
+  if (!orderRegion || !driverRegion) return false;
+  if (orderRegion === "WILAYAH_LAINNYA" || driverRegion === "WILAYAH_LAINNYA") return true;
+  return orderRegion === driverRegion;
+};
+
 // GET /driver/orders/available
 router.get("/available", async (req: any, res) => {
   const driverId = req.user.id as string;
@@ -107,17 +113,10 @@ router.get("/available", async (req: any, res) => {
     return res.status(400).json({ ok: false, error: { message: "Availability driver belum di-set." } });
   }
 
-  const orders = await prisma.customerOrder.findMany({
+  const rawOrders = await prisma.customerOrder.findMany({
     where: {
       status: "SEARCHING_DRIVER",
       driverId: null,
-      store: {
-        storeAvailability: {
-          // hanya ambil order toko dengan region sama
-          region: availability.region,
-          status: "ACTIVE",
-        },
-      },
     },
     orderBy: { createdAt: "desc" },
     select: {
@@ -133,15 +132,28 @@ router.get("/available", async (req: any, res) => {
         select: {
           id: true,
           storeProfile: { select: { storeName: true, photoUrl: true, address: true } },
-          storeAvailability: { select: { region: true } },
+          storeAvailability: { select: { region: true, status: true } },
         },
       },
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       customStoreName: true,
       customStoreAddress: true,
+      customRegion: true,
       pickupAddress: true,
       dropoffAddress: true,
     },
+  });
+
+  const orders = rawOrders.filter((o) => {
+    if (o.store?.storeAvailability) {
+      const sa = o.store.storeAvailability;
+      if (sa.status !== "ACTIVE") return false;
+      return regionMatch(sa.region, availability.region);
+    }
+    if (o.orderType === "FOOD_CUSTOM_STORE") {
+      return regionMatch(o.customRegion, availability.region);
+    }
+    return false;
   });
 
   // Cek apakah driver punya order aktif (DRIVER_ASSIGNED atau ON_DELIVERY)
@@ -468,6 +480,7 @@ router.post("/:id/claim", async (req: any, res) => {
           storeAvailability: { select: { region: true, status: true } },
         },
       },
+      customRegion: true,
     },
   });
 
@@ -480,7 +493,8 @@ router.post("/:id/claim", async (req: any, res) => {
     select: { region: true },
   });
 
-  if (!driverAvail || order.store?.storeAvailability?.region !== driverAvail.region) {
+  const orderRegion = order.store?.storeAvailability?.region || order.customRegion;
+  if (!driverAvail || !orderRegion || !regionMatch(orderRegion, driverAvail.region)) {
     return res.status(400).json({ ok: false, error: { message: "Wilayah tidak cocok atau driver tidak memiliki data availability." } });
   }
 
