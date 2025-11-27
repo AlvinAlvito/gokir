@@ -189,7 +189,22 @@ export default function CustomerCartPage() {
                   <img src={toAbs(s.storePhotoUrl)} className="w-12 h-12 rounded-xl object-cover border border-gray-200 dark:border-gray-800" alt={s.storeName || "Store"} />
                   <div>
                     <p className="font-semibold text-gray-800 dark:text-white/90">{s.storeName || (isCustom ? "Pesanan custom" : "Toko")}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{isCustom ? s.customStoreAddress || "Alamat custom" : `${s.items.length} item`}</p>
+                    {isCustom ? (
+                      s.customStoreAddress ? (
+                        <a
+                          href={s.customStoreAddress}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-200"
+                        >
+                          Lihat lokasi Maps
+                        </a>
+                      ) : (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Alamat custom tidak tersedia</p>
+                      )
+                    ) : (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{s.items.length} item</p>
+                    )}
                   </div>
                 </div>
 
