@@ -87,27 +87,6 @@ const toProof = (path?: string | null) => {
   return url.replace(/ /g, "%20");
 };
 
-const parseNote = (note?: string | null) => {
-  const proofsPickup: string[] = [];
-  const proofsDelivery: string[] = [];
-  let cleaned = note || "";
-  if (note) {
-    const pickupR = /PickupProof:\s*([^\n,;]+)/gi;
-    const deliveryR = /DeliveryProof:\s*([^\n,;]+)/gi;
-    let m;
-    while ((m = pickupR.exec(note))) {
-      const target = m[1]?.trim().replace(/,+$/, "");
-      if (target) proofsPickup.push(target);
-    }
-    while ((m = deliveryR.exec(note))) {
-      const target = m[1]?.trim().replace(/,+$/, "");
-      if (target) proofsDelivery.push(target);
-    }
-    cleaned = cleaned.replace(/PickupProof:[^\n]*/gi, "").replace(/DeliveryProof:[^\n]*/gi, "").trim();
-  }
-  return { noteText: cleaned, proofsPickup, proofsDelivery };
-};
-
 const parseRideMeta = (note?: string | null) => {
   const pickupMap = note?.match(/Maps:\s*(https?:\S+)/i)?.[1] || null;
   const dropoffMap = note?.match(/DropoffMap:\s*(https?:\S+)/i)?.[1] || null;
@@ -121,6 +100,35 @@ const parseRideMeta = (note?: string | null) => {
     .replace(/DeliveryProof:\s*\S+/gi, "")
     .trim();
   return { pickupMap, dropoffMap, pickupPhoto, estPrice: est, cleanedNote: cleaned };
+};
+
+const parseNote = (note?: string | null) => {
+  const proofsPickup: string[] = [];
+  const proofsDelivery: string[] = [];
+  let mapUrl: string | null = null;
+  let cleaned = note || "";
+  if (note) {
+    const pickupR = /PickupProof:\s*([^\n,;]+)/gi;
+    const deliveryR = /DeliveryProof:\s*([^\n,;]+)/gi;
+    const mapR = /Maps:\s*(https?:\S+)/i;
+    const mapM = note.match(mapR);
+    if (mapM) mapUrl = mapM[1];
+    let m;
+    while ((m = pickupR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsPickup.push(target);
+    }
+    while ((m = deliveryR.exec(note))) {
+      const target = m[1]?.trim().replace(/,+$/, "");
+      if (target) proofsDelivery.push(target);
+    }
+    cleaned = cleaned
+      .replace(/PickupProof:[^\n]*/gi, "")
+      .replace(/DeliveryProof:[^\n]*/gi, "")
+      .replace(/Maps:\s*https?:\S+/gi, "")
+      .trim();
+  }
+  return { noteText: cleaned, proofsPickup, proofsDelivery, mapUrl };
 };
 
 export default function DriverOrdersPage() {
@@ -205,11 +213,12 @@ export default function DriverOrdersPage() {
 type OrderCardProps = { order: Order };
 const OrderCard = ({ order }: OrderCardProps) => {
   const navigate = useNavigate();
-  const parsed = parseNote(order.note);
   const rideMeta = order.orderType === "RIDE" ? parseRideMeta(order.note) : null;
-  const noteText = rideMeta ? rideMeta.cleanedNote : parsed.noteText;
+  const parsed = parseNote(order.note);
+  const displayNote = rideMeta ? rideMeta.cleanedNote : parsed.noteText;
   const proofsPickup = parsed.proofsPickup;
   const proofsDelivery = parsed.proofsDelivery;
+  const mapUrl = rideMeta ? null : parsed.mapUrl;
   const [reportOpen, setReportOpen] = useState(false);
   const [reportCategory, setReportCategory] = useState("driver");
   const [reportDetail, setReportDetail] = useState("");
@@ -253,7 +262,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
     <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <p className="text-sm text-gray-500 dark:text-gray-400">#{order.id.slice(0, 8)} • {new Date(order.createdAt).toLocaleString()}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">#{order.id.slice(0, 8)}  \u0007 {new Date(order.createdAt).toLocaleString()}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 italic">{typeLabel[order.orderType]}</p>
           <p className="text-lg font-semibold text-gray-800 dark:text-white/90">{order.menuItem?.name || order.customStoreName || "Pesanan"}</p>
           {order.store?.storeProfile?.storeName && (
@@ -263,9 +272,9 @@ const OrderCard = ({ order }: OrderCardProps) => {
           {order.dropoffAddress && <p className="text-sm text-gray-500 dark:text-gray-400">Tujuan: {order.dropoffAddress}</p>}
           {order.quantity ? <p className="text-sm text-gray-800 dark:text-white/90">Qty: {order.quantity}</p> : null}
           <p className="text-sm text-gray-800 dark:text-white/90">Pembayaran: {order.paymentMethod === "QRIS" ? "QRIS" : "Cash"}</p>
-          {rideMeta ? (
-            <div className="space-y-1">
-              {rideMeta.estPrice && <p className="text-xs text-gray-500 dark:text-gray-400">Estimasi harga: {rideMeta.estPrice}</p>}
+          <div className="space-y-1">
+            {rideMeta?.estPrice && <p className="text-xs text-gray-500 dark:text-gray-400">Estimasi harga: {rideMeta.estPrice}</p>}
+            {rideMeta && (
               <div className="flex flex-wrap gap-2">
                 {rideMeta.pickupMap && (
                   <a
@@ -298,11 +307,21 @@ const OrderCard = ({ order }: OrderCardProps) => {
                   </a>
                 )}
               </div>
-              {noteText && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {noteText}</p>}
-            </div>
-          ) : (
-            noteText && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {noteText}</p>
-          )}
+            )}
+            {!rideMeta && mapUrl && (
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={mapUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center rounded-lg bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-200"
+                >
+                  Lihat Maps
+                </a>
+              </div>
+            )}
+            {displayNote && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {displayNote}</p>}
+          </div>
         </div>
         <div className="flex flex-col items-end gap-2">
           <Badge size="sm" color={statusBadge[order.status]}>{statusLabel[order.status]}</Badge>

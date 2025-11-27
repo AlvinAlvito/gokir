@@ -75,13 +75,17 @@ const parseNote = (note?: string | null) => {
   const proofsPickup: string[] = [];
   const proofsDelivery: string[] = [];
   let rejectReason: string | null = null;
+  let mapUrl: string | null = null;
   let cleaned = note || "";
   if (note) {
     const pickupR = /PickupProof:\s*([^\n,;]+)/gi;
     const deliveryR = /DeliveryProof:\s*([^\n,;]+)/gi;
     const rejectR = /RejectReason:\s*([^\n]+)/i;
+    const mapR = /Maps:\s*(https?:\S+)/i;
     const rejM = note.match(rejectR);
     if (rejM) rejectReason = rejM[1].trim();
+    const mapM = note.match(mapR);
+    if (mapM) mapUrl = mapM[1];
     let m;
     while ((m = pickupR.exec(note))) {
       const target = m[1]?.trim().replace(/,+$/, "");
@@ -95,9 +99,10 @@ const parseNote = (note?: string | null) => {
       .replace(/PickupProof:[^\n]*/gi, "")
       .replace(/DeliveryProof:[^\n]*/gi, "")
       .replace(/RejectReason:[^\n]*/gi, "")
+      .replace(/Maps:\s*https?:\S+/gi, "")
       .trim();
   }
-  return { noteText: cleaned, proofsPickup, proofsDelivery, rejectReason };
+  return { noteText: cleaned, proofsPickup, proofsDelivery, rejectReason, mapUrl };
 };
 
 const badgeColor = (status: OrderStatus) => {
@@ -207,12 +212,9 @@ export default function CustomerOrdersPage() {
 
 type OrderCardProps = { order: Order };
 const OrderCard = ({ order }: OrderCardProps) => {
-  const parsed = parseNote(order.note);
+  const { noteText, proofsPickup, proofsDelivery, rejectReason, mapUrl } = parseNote(order.note);
   const rideMeta = order.orderType === "RIDE" ? parseRideMeta(order.note) : null;
-  const noteText = rideMeta ? rideMeta.cleanedNote : parsed.noteText;
-  const proofsPickup = parsed.proofsPickup;
-  const proofsDelivery = parsed.proofsDelivery;
-  const rejectReason = parsed.rejectReason;
+  const displayNote = rideMeta ? rideMeta.cleanedNote : noteText;
   const [reportOpen, setReportOpen] = useState(false);
   const [reportCategory, setReportCategory] = useState("driver");
   const [reportDetail, setReportDetail] = useState("");
@@ -256,22 +258,19 @@ const OrderCard = ({ order }: OrderCardProps) => {
     <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03]">
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <p className="text-sm text-gray-500 dark:text-gray-400">#{order.id.slice(0, 8)} • {new Date(order.createdAt).toLocaleString()}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">#{order.id.slice(0, 8)}   {new Date(order.createdAt).toLocaleString()}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 italic">{typeLabel(order.orderType)}</p>
           <p className="text-lg font-semibold text-gray-800 dark:text-white/90">{order.menuItem?.name || order.customStoreName || "Pesanan"}</p>
           {order.store?.storeProfile?.storeName && (
             <p className="text-sm text-gray-500 dark:text-gray-400">Toko: {order.store.storeProfile.storeName}</p>
           )}
-          {order.customStoreAddress && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Alamat toko: {order.customStoreAddress}</p>
-          )}
           {order.pickupAddress && <p className="text-sm text-gray-500 dark:text-gray-400">Pickup: {order.pickupAddress}</p>}
           {order.dropoffAddress && <p className="text-sm text-gray-500 dark:text-gray-400">Tujuan: {order.dropoffAddress}</p>}
           {order.quantity ? <p className="text-sm text-gray-800 dark:text-white/90">Qty: {order.quantity}</p> : null}
           <p className="text-sm text-gray-800 dark:text-white/90">Pembayaran: {order.paymentMethod === "QRIS" ? "QRIS" : "Cash"}</p>
-          {rideMeta ? (
-            <div className="space-y-1">
-              {rideMeta.estPrice && <p className="text-xs text-gray-500 dark:text-gray-400">Estimasi harga: {rideMeta.estPrice}</p>}
+          <div className="space-y-1">
+            {rideMeta?.estPrice && <p className="text-xs text-gray-500 dark:text-gray-400">Estimasi harga: {rideMeta.estPrice}</p>}
+            {rideMeta && (
               <div className="flex flex-wrap gap-2">
                 {rideMeta.pickupMap && (
                   <a
@@ -304,12 +303,22 @@ const OrderCard = ({ order }: OrderCardProps) => {
                   </a>
                 )}
               </div>
-              {noteText && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {noteText}</p>}
-            </div>
-          ) : (
-            noteText && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {noteText}</p>
-          )}
-          {rejectReason && <p className="text-xs text-red-500 dark:text-red-400">Alasan ditolak: {rejectReason}</p>}
+            )}
+            {!rideMeta && mapUrl && (
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={mapUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center rounded-lg bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-200"
+                >
+                  Lihat Maps
+                </a>
+              </div>
+            )}
+            {displayNote && <p className="text-xs text-gray-500 dark:text-gray-400">Catatan: {displayNote}</p>}
+            {rejectReason && <p className="text-xs text-red-500 dark:text-red-400">Alasan ditolak: {rejectReason}</p>}
+          </div>
         </div>
         <div className="flex flex-col items-end gap-2">
           <Badge size="sm" color={badgeColor(order.status)}>{statusLabel(order.status)}</Badge>
