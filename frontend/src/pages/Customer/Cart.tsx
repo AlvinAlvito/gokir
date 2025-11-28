@@ -70,6 +70,7 @@ export default function CustomerCartPage() {
     submitting: false,
   });
   const [activeWarning, setActiveWarning] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ note?: string; address?: string; maps?: string }>({});
 
   useEffect(() => {
     setCart(loadCart());
@@ -100,6 +101,7 @@ export default function CustomerCartPage() {
       distanceKm: null,
       submitting: false,
     });
+    setFieldErrors({});
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -112,7 +114,7 @@ export default function CustomerCartPage() {
     }
   };
 
-  const closeModal = () =>
+  const closeModal = () => {
     setModal({
       storeId: null,
       note: "",
@@ -123,6 +125,8 @@ export default function CustomerCartPage() {
       distanceKm: null,
       submitting: false,
     });
+    setFieldErrors({});
+  };
 
   const parseLatLngLocal = (url: string): { lat: number; lng: number } | null => {
     try {
@@ -189,7 +193,12 @@ export default function CustomerCartPage() {
     if (!entry || entry.items.length === 0) return;
     const orderType = entry.orderType || "FOOD_EXISTING_STORE";
     const hasMaps = modal.maps ? `Maps: ${modal.maps}` : "";
-    if (!modal.note.trim() || !modal.address.trim() || !modal.maps.trim()) {
+    const newErrors: { note?: string; address?: string; maps?: string } = {};
+    if (!modal.note.trim()) newErrors.note = "Kolom ini belum diisi";
+    if (!modal.address.trim()) newErrors.address = "Kolom ini belum diisi";
+    if (!modal.maps.trim()) newErrors.maps = "Kolom ini belum diisi";
+    setFieldErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
       setError("Semua kolom wajib diisi.");
       return;
     }
@@ -346,9 +355,13 @@ export default function CustomerCartPage() {
                 <Label>Catatan untuk penjual</Label>
                 <Input
                   value={modal.note}
-                  onChange={(e: any) => setModal((p) => ({ ...p, note: e.target.value }))}
+                  onChange={(e: any) => {
+                    setModal((p) => ({ ...p, note: e.target.value }));
+                    setFieldErrors((fe) => ({ ...fe, note: undefined }));
+                  }}
                   placeholder="Mis. tanpa sambal"
                 />
+                {fieldErrors.note && <p className="text-xs text-red-500">{fieldErrors.note}</p>}
               </div>
               <div>
                 <Label>Pembayaran</Label>
@@ -362,9 +375,13 @@ export default function CustomerCartPage() {
                 <Label>Alamat tujuan</Label>
                 <Input
                   value={modal.address}
-                  onChange={(e: any) => setModal((p) => ({ ...p, address: e.target.value }))}
+                  onChange={(e: any) => {
+                    setModal((p) => ({ ...p, address: e.target.value }));
+                    setFieldErrors((fe) => ({ ...fe, address: undefined }));
+                  }}
                   placeholder="Jl xx No xx, Kos xx"
                 />
+                {fieldErrors.address && <p className="text-xs text-red-500">{fieldErrors.address}</p>}
               </div>
               {modalEntry?.orderType === "FOOD_CUSTOM_STORE" && modalEntry?.customStoreAddress && (
                 <div>
@@ -382,9 +399,13 @@ export default function CustomerCartPage() {
                 <Label>Lokasi anda pada maps</Label>
                 <Input
                   value={modal.maps}
-                  onChange={(e: any) => setModal((p) => ({ ...p, maps: e.target.value, showEstimate: false, distanceKm: null }))}
+                  onChange={(e: any) => {
+                    setModal((p) => ({ ...p, maps: e.target.value, showEstimate: false, distanceKm: null }));
+                    setFieldErrors((fe) => ({ ...fe, maps: undefined }));
+                  }}
                   placeholder="https://www.google.com/maps?q=..."
                 />
+                {fieldErrors.maps && <p className="text-xs text-red-500">{fieldErrors.maps}</p>}
               </div>
               {((modalEntry?.orderType !== "FOOD_CUSTOM_STORE" && modalEntry?.storeMap) || (modalEntry?.orderType === "FOOD_CUSTOM_STORE" && modalEntry?.customStoreAddress)) && (
                 <div className="space-y-2">

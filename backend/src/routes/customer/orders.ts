@@ -337,10 +337,9 @@ router.patch("/:id/cancel", async (req: any, res) => {
   });
   if (!order) return res.status(404).json({ ok: false, error: { message: "Order tidak ditemukan" } });
 
-  if (order.orderType !== "FOOD_CUSTOM_STORE") {
-    return res.status(400).json({ ok: false, error: { message: "Pembatalan hanya untuk pesanan custom" } });
-  }
-  if (order.status !== "SEARCHING_DRIVER") {
+  const isCustomSearching = order.orderType === "FOOD_CUSTOM_STORE" && order.status === "SEARCHING_DRIVER";
+  const isStoreWaiting = order.orderType === "FOOD_EXISTING_STORE" && order.status === "WAITING_STORE_CONFIRM";
+  if (!isCustomSearching && !isStoreWaiting) {
     return res.status(400).json({ ok: false, error: { message: "Pesanan tidak bisa dibatalkan pada status ini" } });
   }
 

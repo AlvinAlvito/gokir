@@ -348,9 +348,10 @@ export default function CustomerOrderProsesPage() {
             })}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
-            {order.orderType === "FOOD_CUSTOM_STORE" && order.status === "SEARCHING_DRIVER" && (
+            {((order.orderType === "FOOD_CUSTOM_STORE" && order.status === "SEARCHING_DRIVER") ||
+              (order.orderType === "FOOD_EXISTING_STORE" && order.status === "WAITING_STORE_CONFIRM")) && (
               <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)} className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20">
                 Batalkan pesanan
               </Button>

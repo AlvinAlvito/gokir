@@ -461,12 +461,12 @@ export default function DriverOrderProsesPage() {
 
           <div className="flex items-center gap-3">
             {order.status === "DRIVER_ASSIGNED" && (
-              <Button size="sm" onClick={handlePickup} disabled={uploading || !proof}>
+              <Button size="sm" onClick={handlePickup} disabled={uploading}>
                 {uploading ? "Memproses..." : "Kirim bukti pickup"}
               </Button>
             )}
             {order.status === "ON_DELIVERY" && (
-              <Button size="sm" onClick={handleComplete} disabled={uploading || !proof}>
+              <Button size="sm" onClick={handleComplete} disabled={uploading}>
                 {uploading ? "Memproses..." : "Kirim bukti serah terima"}
               </Button>
             )}
