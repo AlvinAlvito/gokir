@@ -26,6 +26,11 @@ type Order = {
   paymentMethod?: string | null;
   quantity?: number | null;
   note?: string | null;
+  estimatedFare?: number | null;
+  distanceKm?: number | null;
+  pickupRegion?: string | null;
+  dropoffRegion?: string | null;
+  customRegion?: string | null;
   createdAt: string;
   customer?: { id: string; username?: string | null; email?: string | null; phone?: string | null } | null;
   store?: {
@@ -85,17 +90,32 @@ const parseRideNote = (note?: string | null) => {
   const pickupMapMatch = note?.match(/Maps:\s*(https?:\S+)/i);
   const dropoffMapMatch = note?.match(/DropoffMap:\s*(https?:\S+)/i);
   const pickupPhotoMatch = note?.match(/PickupPhoto:\s*([^\s\n]+)/i);
+  const fareMatch = note?.match(/Estimasi harga:\s*Rp?\.?\s*([0-9.,]+)/i);
   let cleaned = note || "";
   cleaned = cleaned
     .replace(/Maps:\s*https?:\S+/gi, "")
     .replace(/DropoffMap:\s*https?:\S+/gi, "")
     .replace(/PickupPhoto:\s*\S+/gi, "")
+    .replace(/Estimasi harga:[^\n]*/gi, "")
     .trim();
   return {
     pickupMap: pickupMapMatch ? pickupMapMatch[1] : null,
     dropoffMap: dropoffMapMatch ? dropoffMapMatch[1] : null,
     pickupPhoto: pickupPhotoMatch ? pickupPhotoMatch[1] : null,
+    fare: fareMatch ? Number(fareMatch[1].replace(/[^0-9]/g, "")) : null,
     noteText: cleaned,
+  };
+};
+
+const parseNoteMeta = (note?: string | null) => {
+  if (!note) return { noteText: "", mapUrl: null as string | null, fare: null as number | null };
+  const mapMatch = note.match(/Maps:\s*(https?:\S+)/i);
+  const fareMatch = note.match(/Estimasi harga:\s*Rp?\.?\s*([0-9.,]+)/i);
+  let cleaned = note.replace(/Maps:\s*https?:\S+/gi, "").replace(/Estimasi harga:[^\n]*/gi, "").trim();
+  return {
+    noteText: cleaned,
+    mapUrl: mapMatch ? mapMatch[1] : null,
+    fare: fareMatch ? Number(fareMatch[1].replace(/[^0-9]/g, "")) : null,
   };
 };
 
@@ -156,8 +176,11 @@ export default function DriverListOrderPage() {
   const searchingOrders = useMemo(() => orders.filter(o => o.status === "SEARCHING_DRIVER"), [orders]);
 
   const renderCard = (o: Order) => {
-    const total = (o.menuItem?.promoPrice ?? o.menuItem?.price ?? 0) * (o.quantity ?? 1);
     const rideNote = o.orderType === "RIDE" ? parseRideNote(o.note) : null;
+    const noteMeta = o.orderType === "RIDE" ? null : parseNoteMeta(o.note);
+    const fare = o.estimatedFare ?? rideNote?.fare ?? noteMeta?.fare ?? null;
+    const distance = o.distanceKm ?? null;
+    const region = o.store?.storeAvailability?.region || o.pickupRegion || o.customRegion || o.dropoffRegion;
     return (
       <div key={o.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
@@ -165,8 +188,13 @@ export default function DriverListOrderPage() {
             <p className="text-xs text-gray-500 dark:text-gray-400">{formatDate(o.createdAt)}</p>
             <p className="text-sm text-gray-600 dark:text-gray-300">Tipe: {typeLabel[o.orderType]}</p>
             {o.paymentMethod && <p className="text-xs text-gray-500">Metode: {o.paymentMethod}</p>}
+            {region && <p className="text-xs text-gray-500">Wilayah: {region}</p>}
+            {distance != null && <p className="text-xs text-gray-500">Perkiraan jarak: {distance} km</p>}
           </div>
-          <Badge color={statusBadge[o.status]}>{statusLabel[o.status]}</Badge>
+          <div className="flex flex-col items-end gap-1">
+            <Badge color={statusBadge[o.status]}>{statusLabel[o.status]}</Badge>
+            {fare != null && <Badge color="success">Ongkir {currency(fare)}</Badge>}
+          </div>
         </div>
 
         {o.store && (
@@ -182,9 +210,8 @@ export default function DriverListOrderPage() {
         <div className="space-y-2 text-sm text-gray-700 dark:text-white/90">
           {o.menuItem && (
             <div>
-              <p className="font-semibold">Menu</p>
-              <p>{o.menuItem.name} x {o.quantity ?? 1}</p>
-              <p className="text-xs text-gray-500">Perkiraan: {currency(total)}</p>
+              <p className="font-semibold">Jumlah item menu</p>
+              <p className="text-xs text-gray-500">{o.quantity ?? 0} item</p>
             </div>
           )}
 
@@ -238,10 +265,15 @@ export default function DriverListOrderPage() {
               )}
             </>
           ) : (
-            o.note && (
-              <div>
+            (noteMeta?.noteText || noteMeta?.mapUrl) && (
+              <div className="space-y-1">
                 <p className="font-semibold">Catatan</p>
-                <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{o.note}</p>
+                {noteMeta?.noteText && <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteMeta.noteText}</p>}
+                {noteMeta?.mapUrl && (
+                  <Button asChild size="xs" variant="outline">
+                    <a href={noteMeta.mapUrl} target="_blank" rel="noreferrer">Lihat Maps</a>
+                  </Button>
+                )}
               </div>
             )
           )}

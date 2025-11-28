@@ -41,6 +41,17 @@ type Order = {
   menuItem?: { id: string; name: string; price?: number | null; promoPrice?: number | null } | null;
   pickupAddress?: string | null;
   dropoffAddress?: string | null;
+  customStoreName?: string | null;
+  customStoreAddress?: string | null;
+};
+
+type Pricing = {
+  under1Km: number;
+  km1To1_5: number;
+  km1_5To2: number;
+  km2To2_5: number;
+  km2_5To3: number;
+  above3PerKm: number;
 };
 
 const statusLabel: Record<Status, string> = {
@@ -173,6 +184,8 @@ export default function CustomerOrderProsesPage() {
   const [reportSuccess, setReportSuccess] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [pricing, setPricing] = useState<Pricing | null>(null);
+  const [estimate, setEstimate] = useState<{ distanceKm: number; fare: number; itemsTotal: number; total: number } | null>(null);
 
   const fetchOrder = async () => {
     const endpoint = id ? `/customer/orders/${id}` : "/customer/orders/active";
@@ -196,6 +209,11 @@ export default function CustomerOrderProsesPage() {
   const rideMeta = order?.orderType === "RIDE" ? parseRideMeta(order?.note, { pickupMap: order?.pickupMap, dropoffMap: order?.dropoffMap }) : null;
   const steps = order?.orderType === "RIDE" ? stepItemsRide : stepItemsFood;
   const currentStepIndex = useMemo(() => order ? steps.findIndex((s) => s.key === order.status) : -1, [order, steps]);
+  const itemsTotal = useMemo(() => {
+    if (!order?.menuItem) return 0;
+    const price = order.menuItem.promoPrice ?? order.menuItem.price ?? 0;
+    return price * (order.quantity ?? 1);
+  }, [order]);
 
   const stepDescOverride: Partial<Record<Status, string>> = {
     CONFIRMED_COOKING: "Pesanan kamu sedang dibuat oleh toko yaa",
@@ -204,6 +222,105 @@ export default function CustomerOrderProsesPage() {
     ON_DELIVERY: "Pesanan sedang diantar ke lokasi tujuan anda, pastikan alamat anda benar yaa",
     COMPLETED: "Pesanan kamu sudah selesai diantarkan",
   };
+
+  const resolveLatLng = async (url?: string | null) => {
+    const local = parseLatLngFromUrl(url || "");
+    if (local) return local;
+    if (!url) return null;
+    try {
+      const r = await fetch(`${API_URL}/utils/resolve-map?url=${encodeURIComponent(url)}`, { credentials: "include" });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) return null;
+      if (j.data?.lat && j.data?.lng) return { lat: j.data.lat, lng: j.data.lng };
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const haversineKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+
+  const getRouteDistanceKm = async (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false&alternatives=false&steps=false`;
+      const resp = await fetch(url);
+      const j = await resp.json();
+      if (resp.ok && j?.code === "Ok" && j?.routes?.[0]?.distance) {
+        return j.routes[0].distance / 1000;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    const loadPricing = async () => {
+      try {
+        const r = await fetch(`${API_URL}/pricing/delivery`, { credentials: "include" });
+        const j = await r.json();
+        if (r.ok && j?.ok) setPricing(j.data.pricing);
+      } catch {
+        /* ignore */
+      }
+    };
+    if (!pricing) loadPricing();
+  }, [pricing]);
+
+  useEffect(() => {
+    const computeEstimate = async () => {
+      if (!order || (order.orderType !== "FOOD_EXISTING_STORE" && order.orderType !== "FOOD_CUSTOM_STORE")) {
+        setEstimate(null);
+        return;
+      }
+      const pickupUrl =
+        order.orderType === "FOOD_CUSTOM_STORE"
+          ? order.customStoreAddress || order.pickupMap || null
+          : order.store?.storeProfile?.mapsUrl || order.pickupMap || null;
+      const dropUrl = order.mapUrl || order.dropoffMap || null;
+      if (!pickupUrl || !dropUrl) {
+        setEstimate(null);
+        return;
+      }
+      const [p, d] = await Promise.all([
+        order.pickupLat && order.pickupLng ? { lat: order.pickupLat, lng: order.pickupLng } : resolveLatLng(pickupUrl),
+        order.dropoffLat && order.dropoffLng ? { lat: order.dropoffLat, lng: order.dropoffLng } : resolveLatLng(dropUrl),
+      ]);
+      if (!p || !d) {
+        setEstimate(null);
+        return;
+      }
+      const routeKm = await getRouteDistanceKm(p, d);
+      const straight = haversineKm(p, d);
+      const distance = routeKm ?? straight;
+      let fare = 0;
+      const cfg = pricing;
+      if (cfg) {
+        if (distance < 1) fare = cfg.under1Km;
+        else if (distance < 1.5) fare = cfg.km1To1_5;
+        else if (distance < 2) fare = cfg.km1_5To2;
+        else if (distance < 2.5) fare = cfg.km2To2_5;
+        else if (distance < 3) fare = cfg.km2_5To3;
+        else fare = cfg.km2_5To3 + Math.max(0, distance - 3) * cfg.above3PerKm;
+      }
+      setEstimate({
+        distanceKm: Number(distance.toFixed(2)),
+        fare: Math.round(fare),
+        itemsTotal,
+        total: Math.round(fare) + itemsTotal,
+      });
+    };
+    computeEstimate();
+  }, [order, pricing, itemsTotal]);
 
   const submitReport = async () => {
     if (!order?.id) return;
@@ -333,6 +450,19 @@ export default function CustomerOrderProsesPage() {
                           <p>{order.menuItem.name} x {order.quantity ?? 1}</p>
                           <p className="text-xs text-gray-500">Perkiraan: {currency((order.menuItem.promoPrice ?? order.menuItem.price ?? 0) * (order.quantity ?? 1))}</p>
                           <p className="text-xs text-gray-500">Catatan: {noteText || "-"}</p>
+                        </div>
+                      )}
+                      {estimate && (
+                        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-white/5 p-3 space-y-1">
+                          <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Rincian biaya</p>
+                          <p className="text-xs text-gray-500">Perkiraan jarak: {estimate.distanceKm} km</p>
+                          <p className="text-sm text-gray-800 dark:text-white/90">Ongkir: {currency(estimate.fare)}</p>
+                          {order.menuItem && (
+                            <p className="text-sm text-gray-800 dark:text-white/90">
+                              {order.menuItem.name} x {order.quantity ?? 1} @ {currency(order.menuItem.promoPrice ?? order.menuItem.price ?? 0)}
+                            </p>
+                          )}
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">Total: {currency(estimate.total)}</p>
                         </div>
                       )}
                     </div>

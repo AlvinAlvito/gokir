@@ -100,6 +100,42 @@ const regionMatch = (orderRegion?: any, driverRegion?: any) => {
   return orderRegion === driverRegion;
 };
 
+const haversineKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+};
+
+const osrmDistanceKm = async (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false&alternatives=false&steps=false`;
+    const resp = await fetch(url);
+    const j: any = await resp.json();
+    if (resp.ok && j?.code === "Ok" && j?.routes?.[0]?.distance) {
+      return j.routes[0].distance / 1000;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+};
+
+const computeFare = (distance: number | null | undefined, pricing: any) => {
+  if (!distance) return null;
+  if (!pricing) return Math.round(Math.max(4000, 4000 + distance * 2000));
+  if (distance < 1) return pricing.under1Km;
+  if (distance < 1.5) return pricing.km1To1_5;
+  if (distance < 2) return pricing.km1_5To2;
+  if (distance < 2.5) return pricing.km2To2_5;
+  if (distance < 3) return pricing.km2_5To3;
+  return pricing.km2_5To3 + Math.max(0, distance - 3) * pricing.above3PerKm;
+};
+
 // GET /driver/orders/available
 router.get("/available", async (req: any, res) => {
   const driverId = req.user.id as string;
@@ -176,7 +212,22 @@ router.get("/available", async (req: any, res) => {
     select: { id: true },
   });
 
-  return res.json({ ok: true, data: { orders, hasActive: !!active } });
+  const pricing = await prisma.deliveryPricing.findFirst({ orderBy: { createdAt: "desc" } });
+
+  const enriched = await Promise.all(
+    orders.map(async (o) => {
+      let distanceKm: number | null = null;
+      if (o.pickupLat && o.pickupLng && o.dropoffLat && o.dropoffLng) {
+        distanceKm = await osrmDistanceKm({ lat: o.pickupLat, lng: o.pickupLng }, { lat: o.dropoffLat, lng: o.dropoffLng });
+        if (distanceKm == null) distanceKm = haversineKm({ lat: o.pickupLat, lng: o.pickupLng }, { lat: o.dropoffLat, lng: o.dropoffLng }) * 1.3;
+        distanceKm = Number(distanceKm.toFixed(2));
+      }
+      const estimatedFare = computeFare(distanceKm, pricing);
+      return { ...o, distanceKm, estimatedFare };
+    })
+  );
+
+  return res.json({ ok: true, data: { orders: enriched, hasActive: !!active } });
 });
 
 // GET /driver/orders/active -> ambil order aktif milik driver (status belum selesai/dibatalkan) terbaru

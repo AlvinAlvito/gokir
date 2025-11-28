@@ -526,6 +526,16 @@ export default function DriverOrderProsesPage() {
                 {uploading ? "Memproses..." : "Kirim bukti serah terima"}
               </Button>
             )}
+            {order.orderType === "FOOD_CUSTOM_STORE" && order.status === "DRIVER_ASSIGNED" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCancelOpen(true)}
+                className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20"
+              >
+                Batalkan pesanan
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
           </div>
         </div>
@@ -609,6 +619,34 @@ export default function DriverOrderProsesPage() {
           </div>
           <div className="flex justify-center">
             <Button size="sm" onClick={() => setReportSuccess(false)}>Tutup</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={cancelOpen} onClose={() => setCancelOpen(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Batalkan pesanan?</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Apakah anda yakin pesanan ini dibatalkan? jika iya kirimkan alasan kenapa dibatalkan:</p>
+          <div className="space-y-2">
+            <select
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 focus:border-brand-300 focus:outline-none focus:ring focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90"
+            >
+              <option value="TOKO_TIDAK_DITEMUKAN">Toko tidak ditemukan</option>
+              <option value="TOKO_TUTUP">Toko tutup</option>
+              <option value="SALDO_DRIVER_KURANG">Saldo driver kurang</option>
+              <option value="CUSTOMER_MEMINTA_BATAL">Customer minta dibatalkan</option>
+              <option value="DRIVER_TIDAK_BISA">Driver mendadak tidak bisa bekerja</option>
+              <option value="LAINNYA">Lainnya</option>
+            </select>
+            {cancelError && <p className="text-xs text-amber-600 dark:text-amber-400">{cancelError}</p>}
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" size="sm" onClick={() => setCancelOpen(false)}>Batal</Button>
+            <Button size="sm" onClick={cancelOrder} disabled={cancelLoading} className="bg-red-500 hover:bg-red-600 text-white">
+              {cancelLoading ? "Memproses..." : "Batalkan"}
+            </Button>
           </div>
         </div>
       </Modal>

@@ -40,6 +40,7 @@ type CheckoutModal = {
   maps: string;
   showEstimate: boolean;
   distanceKm: number | null;
+  estimatedFare: number | null;
   submitting: boolean;
 };
 
@@ -76,6 +77,7 @@ export default function CustomerCartPage() {
     maps: "",
     showEstimate: false,
     distanceKm: null,
+    estimatedFare: null,
     submitting: false,
   });
   const [activeWarning, setActiveWarning] = useState(false);
@@ -111,6 +113,11 @@ export default function CustomerCartPage() {
     });
   };
 
+  const calcItemsTotal = (entry: CartStore | undefined) => {
+    if (!entry) return 0;
+    return entry.items.reduce((sum, it) => sum + (it.promoPrice ?? it.price) * it.qty, 0);
+  };
+
   const openCheckout = (storeId: string) => {
     const entry = cart[storeId];
     if (!entry) return;
@@ -122,6 +129,7 @@ export default function CustomerCartPage() {
       maps: "",
       showEstimate: false,
       distanceKm: null,
+      estimatedFare: null,
       submitting: false,
     });
     setFieldErrors({});
@@ -146,6 +154,7 @@ export default function CustomerCartPage() {
       maps: "",
       showEstimate: false,
       distanceKm: null,
+      estimatedFare: null,
       submitting: false,
     });
     setFieldErrors({});
@@ -234,7 +243,12 @@ export default function CustomerCartPage() {
       const perKm = 2000;
       est = Math.max(baseFare, Math.round(baseFare + distance * perKm));
     }
-    setModal((pState) => ({ ...pState, showEstimate: true, distanceKm: Number(distance.toFixed(2)) }));
+    setModal((pState) => ({
+      ...pState,
+      showEstimate: true,
+      distanceKm: Number(distance.toFixed(2)),
+      estimatedFare: Math.round(est),
+    }));
     setMsg(`Estimasi harga Rp${Math.round(est).toLocaleString("id-ID")}`);
   };
 
@@ -474,14 +488,28 @@ export default function CustomerCartPage() {
                   >
                     Cek estimasi harga
                   </Button>
-                  {modal.showEstimate ? (
-                  <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5 px-3 py-2">
-                    <p className="text-sm text-gray-800 dark:text-white/90">{msg || "Estimasi siap"}</p>
-                    {modal.distanceKm !== null && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Perkiraan jarak: {modal.distanceKm} km</p>
-                    )}
+            {modal.showEstimate ? (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5 px-3 py-2">
+                <p className="text-sm text-gray-800 dark:text-white/90">{msg || "Estimasi siap"}</p>
+                {modal.distanceKm !== null && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Perkiraan jarak: {modal.distanceKm} km</p>
+                )}
+                {modal.storeId && (
+                  <div className="mt-2 space-y-1 text-xs text-gray-700 dark:text-gray-200">
+                    <p className="font-semibold text-gray-800 dark:text-white/90">Rincian biaya</p>
+                    <p>Ongkir: {currency(modal.estimatedFare)}</p>
+                    {cart[modal.storeId]?.items.map((it) => (
+                      <p key={it.itemId}>
+                        {it.name} x {it.qty} @ {currency(it.promoPrice ?? it.price)}
+                      </p>
+                    ))}
+                    <p className="font-semibold text-gray-800 dark:text-white/90">
+                      Total: {currency((modal.estimatedFare ?? 0) + calcItemsTotal(cart[modal.storeId]))}
+                    </p>
                   </div>
-                ) : (
+                )}
+              </div>
+            ) : (
                     <p className="text-xs text-gray-500 dark:text-gray-400">Isi lokasi Anda lalu tekan cek estimasi untuk melihat estimasi ongkir.</p>
                   )}
                 </div>
