@@ -39,6 +39,8 @@ import webhookMidtrans from "@/routes/webhook/midtrans";
 import storeProfileRoute from "@/routes/store/profile";
 import statsRoute from "@/routes/stats";
 import utilsRoute from "@/routes/utils";
+import superAdminPricing from "@/routes/superadmin/pricing";
+import publicPricing from "@/routes/public/pricing";
 
 const app = express();
 
@@ -100,7 +102,9 @@ app.use("/admin/tickets", adminTickets);
 app.use("/superadmin/reports", superAdminReports);
 app.use("/superadmin/orders", superAdminOrders);
 app.use("/superadmin/users", superAdminUsers);
+app.use("/superadmin/pricing", superAdminPricing);
 app.use("/announcements", announcementsRoute);
+app.use("/pricing", publicPricing);
 
 app.use("/store/profile", requireAuth, storeProfileRoute);
 app.use("/driver/profile", requireAuth, driverProfileRoute);

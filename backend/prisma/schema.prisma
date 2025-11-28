@@ -429,3 +429,16 @@ model Announcement {
 
   @@index([forRole, isActive])
 }
+
+// Konfigurasi ongkir (single row)
+model DeliveryPricing {
+  id              String   @id @default(cuid())
+  under1Km        Int      @default(0)
+  km1To1_5        Int      @default(0)
+  km1_5To2        Int      @default(0)
+  km2To2_5        Int      @default(0)
+  km2_5To3        Int      @default(0)
+  above3PerKm     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

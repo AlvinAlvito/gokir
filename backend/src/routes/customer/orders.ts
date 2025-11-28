@@ -34,6 +34,14 @@ const reportUpload = multer({
   },
 });
 
+export const getDeliveryPricing = async () => {
+  let cfg = await prisma.deliveryPricing.findFirst();
+  if (!cfg) {
+    cfg = await prisma.deliveryPricing.create({ data: {} });
+  }
+  return cfg;
+};
+
 const orderProofDir = path.join(process.cwd(), "uploads", "order-proofs");
 if (!fs.existsSync(orderProofDir)) fs.mkdirSync(orderProofDir, { recursive: true });
 const orderStorage = multer.diskStorage({

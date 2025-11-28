@@ -76,6 +76,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <GridIcon />, name: "Toko", path: "/toko/superadmin" },
     { icon: <TableIcon />, name: "Laporan Support", path: "/superadmin/reports" },
     { icon: <TableIcon />, name: "Monitoring Transaksi", path: "/superadmin/transactions" },
+    { icon: <TableIcon />, name: "Harga Ongkir", path: "/superadmin/pricing" },
     { icon: <TableIcon />, name: "Manajemen Pengguna", path: "/superadmin/users" },
   ],
 };

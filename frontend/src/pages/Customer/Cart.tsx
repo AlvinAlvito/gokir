@@ -23,6 +23,15 @@ type CartStore = {
 };
 type CartState = Record<string, CartStore>;
 
+type Pricing = {
+  under1Km: number;
+  km1To1_5: number;
+  km1_5To2: number;
+  km2To2_5: number;
+  km2_5To3: number;
+  above3PerKm: number;
+};
+
 type CheckoutModal = {
   storeId: string | null;
   note: string;
@@ -71,9 +80,23 @@ export default function CustomerCartPage() {
   });
   const [activeWarning, setActiveWarning] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ note?: string; address?: string; maps?: string }>({});
+  const [pricing, setPricing] = useState<Pricing | null>(null);
 
   useEffect(() => {
     setCart(loadCart());
+  }, []);
+
+  useEffect(() => {
+    const loadPricing = async () => {
+      try {
+        const r = await fetch(`${API_URL}/pricing/delivery`, { credentials: "include" });
+        const j = await r.json();
+        if (r.ok && j?.ok) setPricing(j.data.pricing);
+      } catch {
+        // silent fallback
+      }
+    };
+    loadPricing();
   }, []);
 
   const removeItem = (storeId: string, itemId: string) => {
@@ -180,11 +203,22 @@ export default function CustomerCartPage() {
     }
     const straight = haversineKm(p, d);
     const distance = straight * 1.3;
-    const baseFare = 4000;
-    const perKm = 2000;
-    const est = Math.max(baseFare, Math.round(baseFare + distance * perKm));
+    let est = 0;
+    const cfg = pricing;
+    if (cfg) {
+      if (distance < 1) est = cfg.under1Km;
+      else if (distance < 1.5) est = cfg.km1To1_5;
+      else if (distance < 2) est = cfg.km1_5To2;
+      else if (distance < 2.5) est = cfg.km2To2_5;
+      else if (distance < 3) est = cfg.km2_5To3;
+      else est = cfg.km2_5To3 + Math.max(0, distance - 3) * cfg.above3PerKm;
+    } else {
+      const baseFare = 4000;
+      const perKm = 2000;
+      est = Math.max(baseFare, Math.round(baseFare + distance * perKm));
+    }
     setModal((pState) => ({ ...pState, showEstimate: true, distanceKm: Number(distance.toFixed(2)) }));
-    setMsg(`Estimasi harga Rp${est.toLocaleString("id-ID")}`);
+    setMsg(`Estimasi harga Rp${Math.round(est).toLocaleString("id-ID")}`);
   };
 
   const placeOrder = async () => {

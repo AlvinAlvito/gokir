@@ -25,6 +25,7 @@ import AdminTickets from "./components/admin/Tickets";
 import SupportReportsPage from "./pages/Admin/SupportReports";
 import TransactionsMonitorPage from "./pages/Admin/TransactionsMonitor";
 import UsersManagePage from "./pages/Admin/UsersManage";
+import DeliveryPricingPage from "./pages/Admin/DeliveryPricing";
 
 
 // Customer
@@ -102,6 +103,7 @@ export default function App() {
               <Route path="/superadmin/reports" element={<SupportReportsPage />} />
               <Route path="/superadmin/transactions" element={<TransactionsMonitorPage />} />
               <Route path="/superadmin/users" element={<UsersManagePage />} />
+              <Route path="/superadmin/pricing" element={<DeliveryPricingPage />} />
 
               {/* Customer routes */}
               <Route path="/dashboard/customer" element={<CustomerDashboard />} />
