@@ -30,13 +30,14 @@ type Order = {
   pickupLng?: number | null;
   dropoffLat?: number | null;
   dropoffLng?: number | null;
+  mapUrl?: string | null;
   paymentMethod?: string | null;
   quantity?: number | null;
   note?: string | null;
   createdAt: string;
   customer?: { id: string; username?: string | null; email?: string | null; phone?: string | null } | null;
   driver?: { id: string; username?: string | null; email?: string | null; phone?: string | null; driverProfile?: { facePhotoUrl?: string | null } | null } | null;
-  store?: { id: string; storeProfile?: { storeName?: string | null; photoUrl?: string | null; address?: string | null } | null } | null;
+  store?: { id: string; storeProfile?: { storeName?: string | null; photoUrl?: string | null; address?: string | null; mapsUrl?: string | null } | null } | null;
   menuItem?: { id: string; name: string; price?: number | null; promoPrice?: number | null } | null;
   pickupAddress?: string | null;
   dropoffAddress?: string | null;
@@ -277,6 +278,22 @@ export default function CustomerOrderProsesPage() {
           </div>
 
           <div className="space-y-3">
+            {order.orderType !== "RIDE" ? (
+              (() => {
+                const pickupUrl = order.store?.storeProfile?.mapsUrl || order.pickupMap || null;
+                const dropoffUrl = order.mapUrl || order.dropoffMap || null;
+                if (!pickupUrl && !dropoffUrl) return null;
+                return (
+                  <RideRoutePreview
+                    pickupUrl={pickupUrl || undefined}
+                    dropoffUrl={dropoffUrl || undefined}
+                    pickupCoord={order.pickupLat && order.pickupLng ? { lat: order.pickupLat, lng: order.pickupLng } : undefined}
+                    dropoffCoord={order.dropoffLat && order.dropoffLng ? { lat: order.dropoffLat, lng: order.dropoffLng } : undefined}
+                  />
+                );
+              })()
+            ) : null}
+
             {order.orderType === "RIDE" && rideMeta ? (
               <RideRoutePreview
                 pickupUrl={rideMeta.pickupMap || undefined}

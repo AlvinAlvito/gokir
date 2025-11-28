@@ -60,14 +60,21 @@ export default function RideRoutePreview({ pickupUrl, dropoffUrl, pickupCoord: p
   const [mapId] = useState(() => `ride-map-${Math.random().toString(36).slice(2, 8)}`);
   const [routeCoords, setRouteCoords] = useState<Coord[] | null>(null);
 
-  const p = pickupProp || parseLatLngFromUrl(pickupUrl);
-  const d = dropoffProp || parseLatLngFromUrl(dropoffUrl);
+  let p = pickupProp || parseLatLngFromUrl(pickupUrl);
+  let d = dropoffProp || parseLatLngFromUrl(dropoffUrl);
 
   useEffect(() => {
-    if (!p || !d) {
+    if (!p && !d) {
       setError("Koordinat tidak valid");
       setDirectionsUrl(null);
       return;
+    }
+    if (p && !d) {
+      // fallback: use slight offset for end to allow map render
+      d = { lat: p.lat + 0.0005, lng: p.lng + 0.0005 };
+    }
+    if (d && !p) {
+      p = { lat: d.lat + 0.0005, lng: d.lng + 0.0005 };
     }
     setError(null);
     setDirectionsUrl(`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${p.lat}%2C${p.lng}%3B${d.lat}%2C${d.lng}#map=15/${((p.lat + d.lat) / 2).toFixed(6)}/${((p.lng + d.lng) / 2).toFixed(6)}`);

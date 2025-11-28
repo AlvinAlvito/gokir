@@ -178,10 +178,13 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
     pickupAddress,
     dropoffAddress,
   } = parsed.data;
-  const pickupMap = parsed.data.pickupMap || null;
-  const dropoffMap = parsed.data.dropoffMap || null;
-  const pickupCoords = await resolveMapUrl(pickupMap);
-  const dropoffCoords = await resolveMapUrl(dropoffMap);
+  const pickupMapRaw = parsed.data.pickupMap || null;
+  const dropoffMapRaw = parsed.data.dropoffMap || null;
+  const mapFromNote = note?.match(/Maps:\s*(https?:\S+)/i)?.[1] || null;
+  let pickupMap: string | null = pickupMapRaw;
+  let dropoffMap: string | null = dropoffMapRaw || mapFromNote || null;
+  let pickupCoords = await resolveMapUrl(pickupMap || undefined);
+  let dropoffCoords = await resolveMapUrl(dropoffMap || undefined);
 
   let storeUserId: string | undefined;
   let menuItemValidated: { id: string; name: string; price: number; promoPrice: number | null } | undefined;
@@ -193,7 +196,7 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
     }
     const storeProfile = await prisma.storeProfile.findUnique({
       where: { id: storeProfileId },
-      select: { userId: true, status: true },
+      select: { userId: true, status: true, mapsUrl: true },
     });
     if (!storeProfile || storeProfile.status !== "APPROVED") {
       return res.status(400).json({ ok: false, error: { message: "Toko tidak tersedia" } });
@@ -207,12 +210,66 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
       return res.status(400).json({ ok: false, error: { message: "Menu tidak tersedia" } });
     }
     menuItemValidated = { id: item.id, name: item.name, price: item.price, promoPrice: item.promoPrice ?? null };
+    pickupMap = storeProfile.mapsUrl || pickupMapRaw;
+    dropoffMap = dropoffMapRaw || mapFromNote || null;
+    pickupCoords = await resolveMapUrl(pickupMap || undefined);
+    dropoffCoords = await resolveMapUrl(dropoffMap || undefined);
+
+    const order = await prisma.customerOrder.create({
+      data: {
+        customerId: user.id,
+        storeId: storeUserId,
+        menuItemId: menuItemValidated?.id,
+        quantity: quantity ?? null,
+        note,
+        paymentMethod,
+        status: initialStatus,
+        orderType,
+        customStoreName,
+        customStoreAddress,
+        pickupAddress,
+        dropoffAddress,
+        pickupMap,
+        dropoffMap,
+        pickupLat: pickupCoords?.lat,
+        pickupLng: pickupCoords?.lng,
+        dropoffLat: dropoffCoords?.lat,
+        dropoffLng: dropoffCoords?.lng,
+      },
+      select: {
+        id: true,
+        status: true,
+        paymentMethod: true,
+        quantity: true,
+        note: true,
+        createdAt: true,
+        orderType: true,
+        customStoreName: true,
+        customStoreAddress: true,
+        pickupAddress: true,
+        dropoffAddress: true,
+        pickupMap: true,
+        dropoffMap: true,
+        pickupLat: true,
+        pickupLng: true,
+        dropoffLat: true,
+        dropoffLng: true,
+        menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
+        store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, mapsUrl: true } } } },
+      },
+    });
+    return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
   } else if (orderType === "FOOD_CUSTOM_STORE") {
     if (!customStoreName || !customStoreAddress || !quantity) {
       return res.status(400).json({ ok: false, error: { message: "Nama & alamat toko custom serta quantity wajib" } });
     }
     initialStatus = "SEARCHING_DRIVER";
     const customRegion = parsed.data.customRegion || "WILAYAH_LAINNYA";
+    const addressHasUrl = customStoreAddress && /^https?:\/\//i.test(customStoreAddress);
+    pickupMap = pickupMapRaw || (addressHasUrl ? customStoreAddress : null);
+    dropoffMap = dropoffMapRaw || mapFromNote || null;
+    pickupCoords = await resolveMapUrl(pickupMap || undefined);
+    dropoffCoords = await resolveMapUrl(dropoffMap || undefined);
     const order = await prisma.customerOrder.create({
       data: {
         customerId: user.id,
@@ -315,51 +372,8 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
     return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
   }
 
-  const order = await prisma.customerOrder.create({
-    data: {
-      customerId: user.id,
-      storeId: storeUserId,
-      menuItemId: menuItemValidated?.id,
-      quantity: quantity ?? null,
-      note,
-      paymentMethod,
-      status: initialStatus,
-      orderType,
-      customStoreName,
-      customStoreAddress,
-      pickupAddress,
-      dropoffAddress,
-      pickupMap,
-      dropoffMap,
-      pickupLat: pickupCoords?.lat,
-      pickupLng: pickupCoords?.lng,
-      dropoffLat: dropoffCoords?.lat,
-      dropoffLng: dropoffCoords?.lng,
-    },
-    select: {
-      id: true,
-      status: true,
-      paymentMethod: true,
-      quantity: true,
-      note: true,
-      createdAt: true,
-      orderType: true,
-      customStoreName: true,
-      customStoreAddress: true,
-      pickupAddress: true,
-      dropoffAddress: true,
-      pickupMap: true,
-      dropoffMap: true,
-      pickupLat: true,
-      pickupLng: true,
-      dropoffLat: true,
-      dropoffLng: true,
-      menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
-      store: { select: { id: true, storeProfile: { select: { id: true, storeName: true } } } },
-    },
-  });
-
-  return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
+  // fallback (should not reach here because each branch returns)
+  return res.status(400).json({ ok: false, error: { message: "Tipe order tidak didukung" } });
 });
 
 // POST /customer/orders/:id/report -> laporkan transaksi oleh customer
@@ -457,7 +471,7 @@ router.get("/", async (req: any, res) => {
       dropoffLat: true,
       dropoffLng: true,
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
-      store: { select: { id: true, storeProfile: { select: { id: true, storeName: true } } } },
+      store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, mapsUrl: true } } } },
       driver: { select: { id: true, username: true, email: true, phone: true, driverProfile: { select: { facePhotoUrl: true } } } },
     },
   });
@@ -492,7 +506,7 @@ router.get("/active", async (req: any, res) => {
       dropoffLat: true,
       dropoffLng: true,
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
-      store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, photoUrl: true, address: true } } } },
+      store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, photoUrl: true, address: true, mapsUrl: true } } } },
       driver: { select: { id: true, username: true, email: true, phone: true, driverProfile: { select: { facePhotoUrl: true } } } },
     },
   });

@@ -202,7 +202,7 @@ router.get("/active", async (req: any, res) => {
       store: {
         select: {
           id: true,
-          storeProfile: { select: { storeName: true, photoUrl: true, address: true } },
+          storeProfile: { select: { storeName: true, photoUrl: true, address: true, mapsUrl: true } },
           storeAvailability: { select: { region: true } },
         },
       },
@@ -386,7 +386,7 @@ router.get("/history", async (req: any, res) => {
       store: {
         select: {
           id: true,
-          storeProfile: { select: { storeName: true, photoUrl: true, address: true } },
+          storeProfile: { select: { storeName: true, photoUrl: true, address: true, mapsUrl: true } },
           storeAvailability: { select: { region: true } },
         },
       },

@@ -190,12 +190,14 @@ export default function CustomerCartPage() {
     return 2 * R * Math.asin(Math.sqrt(h));
   };
 
-  const handleEstimate = async (storeMap?: string | null) => {
-    if (!storeMap || !modal.maps) {
+  const handleEstimate = async (storeMap?: string | null, userMap?: string | null) => {
+    const pickupUrl = storeMap || "";
+    const dropUrl = userMap || "";
+    if (!pickupUrl || !dropUrl) {
       setError("Pastikan link Maps toko dan lokasi Anda terisi, lalu cek estimasi.");
       return;
     }
-    const [p, d] = await Promise.all([resolveLatLng(storeMap), resolveLatLng(modal.maps)]);
+    const [p, d] = await Promise.all([resolveLatLng(pickupUrl), resolveLatLng(dropUrl)]);
     if (!p || !d) {
       setError("Gagal membaca koordinat dari link Maps.");
       setModal((pState) => ({ ...pState, showEstimate: false, distanceKm: null }));
@@ -446,7 +448,13 @@ export default function CustomerCartPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleEstimate(modalEntry?.orderType === "FOOD_CUSTOM_STORE" ? modalEntry.customStoreAddress : modalEntry.storeMap)}
+                    onClick={() => {
+                      const pickup = modalEntry?.orderType === "FOOD_CUSTOM_STORE"
+                        ? modalEntry.storeMap || modalEntry.customStoreAddress || ""
+                        : modalEntry.storeMap || "";
+                      const drop = modal.maps || "";
+                      handleEstimate(pickup, drop);
+                    }}
                     disabled={modal.submitting}
                   >
                     Cek estimasi harga

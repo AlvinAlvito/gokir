@@ -36,7 +36,7 @@ type Order = {
   createdAt: string;
   customer?: { id: string; username?: string | null; email?: string | null; phone?: string | null } | null;
   driver?: { id: string; username?: string | null; email?: string | null; phone?: string | null; driverProfile?: { facePhotoUrl?: string | null } | null } | null;
-  store?: { id: string; storeProfile?: { storeName?: string | null; photoUrl?: string | null; address?: string | null } | null } | null;
+  store?: { id: string; storeProfile?: { storeName?: string | null; photoUrl?: string | null; address?: string | null; mapsUrl?: string | null } | null } | null;
   menuItem?: { id: string; name: string; price?: number | null; promoPrice?: number | null } | null;
   pickupAddress?: string | null;
   dropoffAddress?: string | null;
@@ -322,6 +322,21 @@ export default function DriverOrderProsesPage() {
               dropoffCoord={order.dropoffLat && order.dropoffLng ? { lat: order.dropoffLat, lng: order.dropoffLng } : undefined}
             />
           )}
+          {order.orderType !== "RIDE" ? (
+            (() => {
+              const pickupUrl = order.store?.storeProfile?.mapsUrl || order.pickupMap || undefined;
+              const dropoffUrl = order.mapUrl || order.dropoffMap || undefined;
+              if (!pickupUrl && !dropoffUrl) return null;
+              return (
+                <RideRoutePreview
+                  pickupUrl={pickupUrl}
+                  dropoffUrl={dropoffUrl}
+                  pickupCoord={order.pickupLat && order.pickupLng ? { lat: order.pickupLat, lng: order.pickupLng } : undefined}
+                  dropoffCoord={order.dropoffLat && order.dropoffLng ? { lat: order.dropoffLat, lng: order.dropoffLng } : undefined}
+                />
+              );
+            })()
+          ) : null}
 
           <div className="space-y-3">
             {steps.map((s: StepItem, idx: number) => {
