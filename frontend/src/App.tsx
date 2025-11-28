@@ -26,6 +26,7 @@ import SupportReportsPage from "./pages/Admin/SupportReports";
 import TransactionsMonitorPage from "./pages/Admin/TransactionsMonitor";
 import UsersManagePage from "./pages/Admin/UsersManage";
 import DeliveryPricingPage from "./pages/Admin/DeliveryPricing";
+import SuperadminTutorialSupportPage from "./pages/SuperAdmin/TutorialSupport";
 
 
 // Customer
@@ -55,6 +56,9 @@ import StoreOrdersHistoryPage from "./pages/Store/OrdersHistory";
 import DriverListOrderPage from "./pages/Driver/ListOrder";
 import DriverOrderProsesPage from "./pages/Driver/OrderProses";
 import DriverOrdersPage from "./pages/Driver/Orders";
+import CustomerTutorialSupportPage from "./pages/Customer/TutorialSupport";
+import DriverTutorialSupportPage from "./pages/Driver/TutorialSupport";
+import StoreTutorialSupportPage from "./pages/Store/TutorialSupport";
 
 // Dashboards (buat halaman placeholder kalau belum ada)
 import NotFound from "./pages/OtherPage/NotFound";
@@ -104,6 +108,7 @@ export default function App() {
               <Route path="/superadmin/transactions" element={<TransactionsMonitorPage />} />
               <Route path="/superadmin/users" element={<UsersManagePage />} />
               <Route path="/superadmin/pricing" element={<DeliveryPricingPage />} />
+              <Route path="/superadmin/tutorial-support" element={<SuperadminTutorialSupportPage />} />
 
               {/* Customer routes */}
               <Route path="/dashboard/customer" element={<CustomerDashboard />} />
@@ -114,6 +119,7 @@ export default function App() {
               <Route path="/orders" element={<CustomerOrdersPage />} />
               <Route path="/orders/active" element={<CustomerOrderProsesPage />} />
               <Route path="/cart" element={<CustomerCartPage />} />
+              <Route path="/tutorial-support/customer" element={<CustomerTutorialSupportPage />} />
 
               {/* Store routes */}
               <Route path="/dashboard/store" element={<StoreDashboard />} />
@@ -123,6 +129,7 @@ export default function App() {
               <Route path="/store/menu" element={<StoreMenuPage />} />
               <Route path="/pesanan/store" element={<StoreOrdersPage />} />
               <Route path="/store/orders" element={<StoreOrdersHistoryPage />} />
+              <Route path="/tutorial-support/store" element={<StoreTutorialSupportPage />} />
 
               {/* Driver routes */}
               <Route path="/dashboard/driver" element={<DriverDashboard />} />
@@ -133,6 +140,7 @@ export default function App() {
               <Route path="/driver/order-proses" element={<DriverOrderProsesPage />} />
               <Route path="/driver/order-proses/:id" element={<DriverOrderProsesPage />} />
               <Route path="/driver/orders" element={<DriverOrdersPage />} />
+              <Route path="/tutorial-support/driver" element={<DriverTutorialSupportPage />} />
 
               {/* Superadmin */}
               <Route path="/driver/superadmin" element={<AdminDriver />} />

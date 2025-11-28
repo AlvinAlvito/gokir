@@ -40,7 +40,9 @@ import storeProfileRoute from "@/routes/store/profile";
 import statsRoute from "@/routes/stats";
 import utilsRoute from "@/routes/utils";
 import superAdminPricing from "@/routes/superadmin/pricing";
+import superAdminTutorialSupport from "@/routes/superadmin/tutorialSupport";
 import publicPricing from "@/routes/public/pricing";
+import tutorialSupportRoute from "@/routes/tutorialSupport";
 
 const app = express();
 
@@ -103,6 +105,8 @@ app.use("/superadmin/reports", superAdminReports);
 app.use("/superadmin/orders", superAdminOrders);
 app.use("/superadmin/users", superAdminUsers);
 app.use("/superadmin/pricing", superAdminPricing);
+app.use("/superadmin/tutorial-support", superAdminTutorialSupport);
+app.use("/tutorial-support", tutorialSupportRoute);
 app.use("/announcements", announcementsRoute);
 app.use("/pricing", publicPricing);
 

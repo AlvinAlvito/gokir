@@ -497,6 +497,49 @@ router.get("/active", async (req: any, res) => {
   return res.json({ ok: true, data: { order: withParsedNote(order) } });
 });
 
+// PATCH /driver/orders/:id/cancel -> batalkan pesanan custom (toko luar) saat DRIVER_ASSIGNED
+router.patch("/:id/cancel", async (req: any, res) => {
+  const driverId = req.user.id as string;
+  const reasonRaw = String(req.body.reason || "").trim().toUpperCase();
+  const validReasons = [
+    "TOKO_TIDAK_DITEMUKAN",
+    "TOKO_TUTUP",
+    "SALDO_DRIVER_KURANG",
+    "CUSTOMER_MEMINTA_BATAL",
+    "DRIVER_TIDAK_BISA",
+    "LAINNYA",
+  ];
+  if (!validReasons.includes(reasonRaw)) {
+    return res.status(400).json({ ok: false, error: { message: "Alasan batal tidak valid" } });
+  }
+
+  const order = await prisma.customerOrder.findFirst({
+    where: { id: req.params.id, driverId },
+    select: { id: true, status: true, orderType: true, note: true },
+  });
+  if (!order) return res.status(404).json({ ok: false, error: { message: "Order tidak ditemukan" } });
+  if (!(order.orderType === "FOOD_CUSTOM_STORE" && order.status === "DRIVER_ASSIGNED")) {
+    return res.status(400).json({ ok: false, error: { message: "Pesanan tidak bisa dibatalkan pada status ini" } });
+  }
+
+  const reasonText = {
+    TOKO_TIDAK_DITEMUKAN: "Toko tidak ditemukan",
+    TOKO_TUTUP: "Toko tutup",
+    SALDO_DRIVER_KURANG: "Saldo driver kurang",
+    CUSTOMER_MEMINTA_BATAL: "Customer meminta dibatalkan",
+    DRIVER_TIDAK_BISA: "Driver mendadak tidak bisa bekerja",
+    LAINNYA: "Lainnya",
+  }[reasonRaw];
+
+  const newNote = `${order.note || ""}\nDriverCancelReason: ${reasonText}`.trim();
+  const updated = await prisma.customerOrder.update({
+    where: { id: order.id },
+    data: { status: "CANCELLED", note: newNote },
+    select: { id: true, status: true, note: true },
+  });
+  return res.json({ ok: true, data: { order: updated } });
+});
+
 // POST /driver/orders/:id/claim
 router.post("/:id/claim", async (req: any, res) => {
   const driverId = req.user.id as string;

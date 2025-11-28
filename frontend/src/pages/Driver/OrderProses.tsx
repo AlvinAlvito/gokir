@@ -167,6 +167,10 @@ export default function DriverOrderProsesPage() {
   const [reportSending, setReportSending] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("TOKO_TIDAK_DITEMUKAN");
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const fetchOrder = async () => {
     const endpoint = id ? `/driver/orders/${id}` : "/driver/orders/active";
@@ -181,6 +185,28 @@ export default function DriverOrderProsesPage() {
       setError(e.message || "Terjadi kesalahan");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cancelOrder = async () => {
+    if (!order?.id) return;
+    try {
+      setCancelLoading(true);
+      setCancelError(null);
+      const r = await fetch(`${API_URL}/driver/orders/${order.id}/cancel`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: cancelReason }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal membatalkan pesanan");
+      setCancelOpen(false);
+      navigate("/driver/orders");
+    } catch (e: any) {
+      setCancelError(e.message || "Gagal membatalkan pesanan");
+    } finally {
+      setCancelLoading(false);
     }
   };
 

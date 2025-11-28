@@ -33,6 +33,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <TableIcon />, name: "Keranjang", path: "/cart" },
     { icon: <TableIcon />, name: "Order Proses", path: "/orders/active" },
     { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/orders" },
+    { icon: <PageIcon />, name: "Tutorial & Support", path: "/tutorial-support/customer" },
 
   ],
  STORE: [
@@ -43,6 +44,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <ListIcon />, name: "Menu", path: "/store/menu" },
     { icon: <TableIcon />, name: "Pesanan", path: "/pesanan/store" },
     { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/store/orders" },
+    { icon: <PageIcon />, name: "Tutorial & Support", path: "/tutorial-support/store" },
   ],
   DRIVER: [
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/driver" },
@@ -52,6 +54,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <ListIcon />, name: "List Order", path: "/driver/list-order" },
     { icon: <TableIcon />, name: "Order Proses", path: "/driver/order-proses" },
     { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/driver/orders" },
+    { icon: <PageIcon />, name: "Tutorial & Support", path: "/tutorial-support/driver" },
 
 
 
@@ -78,6 +81,7 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
     { icon: <TableIcon />, name: "Monitoring Transaksi", path: "/superadmin/transactions" },
     { icon: <TableIcon />, name: "Harga Ongkir", path: "/superadmin/pricing" },
     { icon: <TableIcon />, name: "Manajemen Pengguna", path: "/superadmin/users" },
+    { icon: <PageIcon />, name: "Tutorial & Support", path: "/superadmin/tutorial-support" },
   ],
 };
 
