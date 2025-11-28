@@ -28,11 +28,11 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   CUSTOMER: [
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/customer" },
     { icon: <UserCircleIcon />, name: "Profil", path: "/profile/customer" },
+    { icon: <ListIcon />, name: "Antar Penumpang", path: "/orders/ride" },
     { icon: <ListIcon />, name: "Pesan Makanan", path: "/orders/food" },
     { icon: <TableIcon />, name: "Keranjang", path: "/cart" },
-  { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/orders" },
     { icon: <TableIcon />, name: "Order Proses", path: "/orders/active" },
-    { icon: <ListIcon />, name: "Antar Penumpang", path: "/orders/ride" },
+    { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/orders" },
 
   ],
  STORE: [
