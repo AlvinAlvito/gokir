@@ -190,6 +190,20 @@ export default function CustomerCartPage() {
     return 2 * R * Math.asin(Math.sqrt(h));
   };
 
+  const getRouteDistanceKm = async (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false&alternatives=false&steps=false`;
+      const resp = await fetch(url);
+      const j = await resp.json();
+      if (resp.ok && j?.code === "Ok" && j?.routes?.[0]?.distance) {
+        return j.routes[0].distance / 1000;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  };
+
   const handleEstimate = async (storeMap?: string | null, userMap?: string | null) => {
     const pickupUrl = storeMap || "";
     const dropUrl = userMap || "";
@@ -203,8 +217,9 @@ export default function CustomerCartPage() {
       setModal((pState) => ({ ...pState, showEstimate: false, distanceKm: null }));
       return;
     }
+    const routeKm = await getRouteDistanceKm(p, d);
     const straight = haversineKm(p, d);
-    const distance = straight * 1.3;
+    const distance = routeKm ?? straight * 1.3;
     let est = 0;
     const cfg = pricing;
     if (cfg) {
@@ -460,13 +475,13 @@ export default function CustomerCartPage() {
                     Cek estimasi harga
                   </Button>
                   {modal.showEstimate ? (
-                    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5 px-3 py-2">
-                      <p className="text-sm text-gray-800 dark:text-white/90">{msg || "Estimasi siap"}</p>
-                      {modal.distanceKm !== null && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Perkiraan jarak: {modal.distanceKm} km (garis lurus x1.3)</p>
-                      )}
-                    </div>
-                  ) : (
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5 px-3 py-2">
+                    <p className="text-sm text-gray-800 dark:text-white/90">{msg || "Estimasi siap"}</p>
+                    {modal.distanceKm !== null && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Perkiraan jarak: {modal.distanceKm} km</p>
+                    )}
+                  </div>
+                ) : (
                     <p className="text-xs text-gray-500 dark:text-gray-400">Isi lokasi Anda lalu tekan cek estimasi untuk melihat estimasi ongkir.</p>
                   )}
                 </div>

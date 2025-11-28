@@ -92,14 +92,29 @@ export default function RideOrderPage() {
     return null;
   };
 
+  const getRouteDistanceKm = async (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false&alternatives=false&steps=false`;
+      const resp = await fetch(url);
+      const j = await resp.json();
+      if (resp.ok && j?.code === "Ok" && j?.routes?.[0]?.distance) {
+        return j.routes[0].distance / 1000;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  };
+
   const recomputeFare = async (pickupMap: string, dropoffMap: string) => {
     const [p, d] = await Promise.all([resolveLatLng(pickupMap), resolveLatLng(dropoffMap)]);
     if (!p || !d) {
       setDistanceKm(null);
       return false;
     }
+    const routeKm = await getRouteDistanceKm(p, d);
     const straight = haversineKm(p, d);
-    const distance = straight * 1.3; // faktor koreksi jalan
+    const distance = routeKm ?? straight * 1.3; // faktor koreksi jalan jika OSRM gagal
     setDistanceKm(Number(distance.toFixed(2)));
     let est = 0;
     const cfg = pricing;
@@ -135,7 +150,7 @@ export default function RideOrderPage() {
   };
 
   const handleSubmit = async () => {
-    if (!form.pickupRegion || !form.dropoffRegion || !form.pickupAddress || !form.dropoffAddress) {
+    if (!form.pickupRegion || !form.dropoffRegion || !form.pickupAddress.trim() || !form.dropoffAddress.trim()) {
       setError("Lengkapi wilayah dan alamat penjemputan/tujuan");
       return;
     }
@@ -283,7 +298,7 @@ export default function RideOrderPage() {
               <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5 px-3 py-2">
                 <p className="text-sm text-gray-800 dark:text-white/90">Rp {form.price.toLocaleString("id-ID")}</p>
                 {distanceKm !== null && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Perkiraan jarak: {distanceKm} km (garis lurus x1.3)</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Perkiraan jarak: {distanceKm} km</p>
                 )}
               </div>
             ) : (

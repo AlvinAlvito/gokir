@@ -30,6 +30,9 @@ type Order = {
   pickupLng?: number | null;
   dropoffLat?: number | null;
   dropoffLng?: number | null;
+  pickupRegion?: string | null;
+  dropoffRegion?: string | null;
+  mapUrl?: string | null;
   paymentMethod?: string | null;
   quantity?: number | null;
   note?: string | null;
@@ -149,13 +152,6 @@ const parseNote = (note?: string | null) => {
   return { noteText: cleaned, proofsPickup, proofsDelivery };
 };
 
-const waLink = (phone?: string | null) => {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, "");
-  const normalized = digits.startsWith("62") ? digits : `62${digits.replace(/^0/, "")}`;
-  return `https://wa.me/${normalized}`;
-};
-
 export default function DriverOrderProsesPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -203,9 +199,6 @@ export default function DriverOrderProsesPage() {
     ON_DELIVERY: "Pesanan sedang diantar ke lokasi tujuan anda, pastikan alamat anda benar yaa",
     COMPLETED: "Pesanan kamu sudah selesai diantarkan",
   };
-
-  const needsPickupProof = order?.status === "DRIVER_ASSIGNED";
-  const needsDeliveryProof = order?.status === "ON_DELIVERY";
 
   const handlePickup = async () => {
     if (!order?.id) return;
