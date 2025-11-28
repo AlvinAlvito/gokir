@@ -143,6 +143,12 @@ router.get("/available", async (req: any, res) => {
       customRegion: true,
       pickupAddress: true,
       dropoffAddress: true,
+      pickupMap: true,
+      dropoffMap: true,
+      pickupLat: true,
+      pickupLng: true,
+      dropoffLat: true,
+      dropoffLng: true,
     },
   });
 
@@ -207,6 +213,12 @@ router.get("/active", async (req: any, res) => {
       dropoffRegion: true,
       pickupAddress: true,
       dropoffAddress: true,
+      pickupMap: true,
+      dropoffMap: true,
+      pickupLat: true,
+      pickupLng: true,
+      dropoffLat: true,
+      dropoffLng: true,
     },
   });
 
@@ -425,6 +437,12 @@ router.get("/:id", async (req: any, res) => {
       dropoffRegion: true,
       pickupAddress: true,
       dropoffAddress: true,
+      pickupMap: true,
+      dropoffMap: true,
+      pickupLat: true,
+      pickupLng: true,
+      dropoffLat: true,
+      dropoffLng: true,
     },
   });
 
@@ -466,11 +484,17 @@ router.get("/active", async (req: any, res) => {
       dropoffRegion: true,
       pickupAddress: true,
       dropoffAddress: true,
+      pickupMap: true,
+      dropoffMap: true,
+      pickupLat: true,
+      pickupLng: true,
+      dropoffLat: true,
+      dropoffLng: true,
     },
   });
 
   if (!order) return res.status(404).json({ ok: false, error: { message: "Tidak ada order aktif" } });
-  return res.json({ ok: true, data: { order } });
+  return res.json({ ok: true, data: { order: withParsedNote(order) } });
 });
 
 // POST /driver/orders/:id/claim

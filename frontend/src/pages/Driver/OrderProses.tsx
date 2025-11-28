@@ -4,6 +4,7 @@ import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
 import { Modal } from "../../components/ui/modal";
+import RideRoutePreview from "../../components/ride/RideRoutePreview";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -23,6 +24,12 @@ type Order = {
   id: string;
   status: Status;
   orderType: OrderType;
+  pickupMap?: string | null;
+  dropoffMap?: string | null;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+  dropoffLat?: number | null;
+  dropoffLng?: number | null;
   paymentMethod?: string | null;
   quantity?: number | null;
   note?: string | null;
@@ -107,12 +114,18 @@ const extractMap = (note?: string | null) => {
   return m ? m[1] : null;
 };
 
-const parseRideMeta = (note?: string | null) => {
+const parseRideMeta = (
+  note?: string | null,
+  orderExtra?: { pickupMap?: string | null; dropoffMap?: string | null }
+) => {
   const pickupMap = note?.match(/Maps:\s*(https?:\S+)/i)?.[1] || null;
   const dropoffMap = note?.match(/DropoffMap:\s*(https?:\S+)/i)?.[1] || null;
   const pickupPhoto = note?.match(/PickupPhoto:\s*([^\s\n]+)/i)?.[1] || null;
   const est = note?.match(/Estimasi harga:\s*([^\n]+)/i)?.[1] || null;
-  return { pickupMap, dropoffMap, pickupPhoto, estPrice: est };
+  const urls = note?.match(/https?:\S+/g) || [];
+  const fallbackPickup = pickupMap || urls[0] || orderExtra?.pickupMap || null;
+  const fallbackDrop = dropoffMap || urls[1] || orderExtra?.dropoffMap || null;
+  return { pickupMap: fallbackPickup, dropoffMap: fallbackDrop, pickupPhoto, estPrice: est };
 };
 
 const parseNote = (note?: string | null) => {
@@ -181,7 +194,7 @@ export default function DriverOrderProsesPage() {
   const mapUrl = extractMap(order?.note);
   const steps = order?.orderType === "RIDE" ? stepItemsRide : stepItemsFood;
   const currentStepIndex = useMemo(() => order ? steps.findIndex((s) => s.key === order.status) : -1, [order, steps]);
-  const rideMeta = order?.orderType === "RIDE" ? parseRideMeta(order.note) : null;
+  const rideMeta = order?.orderType === "RIDE" ? parseRideMeta(order.note, { pickupMap: order.pickupMap, dropoffMap: order.dropoffMap }) : null;
 
   const stepDescOverride: Partial<Record<Status, string>> = {
     CONFIRMED_COOKING: "Pesanan kamu sedang dibuat oleh toko yaa",
@@ -300,6 +313,15 @@ export default function DriverOrderProsesPage() {
             </div>
             <Badge color={statusBadge[order.status]}>{statusLabel[order.status]}</Badge>
           </div>
+
+          {order.orderType === "RIDE" && rideMeta && (
+            <RideRoutePreview
+              pickupUrl={rideMeta.pickupMap || undefined}
+              dropoffUrl={rideMeta.dropoffMap || undefined}
+              pickupCoord={order.pickupLat && order.pickupLng ? { lat: order.pickupLat, lng: order.pickupLng } : undefined}
+              dropoffCoord={order.dropoffLat && order.dropoffLng ? { lat: order.dropoffLat, lng: order.dropoffLng } : undefined}
+            />
+          )}
 
           <div className="space-y-3">
             {steps.map((s: StepItem, idx: number) => {

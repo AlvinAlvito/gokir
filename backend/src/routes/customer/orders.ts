@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import fetch from "node-fetch";
 
 const router = Router();
 router.use(requireRole(["CUSTOMER"]));
@@ -119,6 +120,31 @@ const createSchema = z.object({
   dropoffAddress: z.string().optional(),
 });
 
+const parseLatLng = (url: string): { lat: number; lng: number } | null => {
+  try {
+    const qMatch = url.match(/q=([0-9.+-]+),([0-9.+-]+)/i);
+    if (qMatch) return { lat: Number(qMatch[1]), lng: Number(qMatch[2]) };
+    const atMatch = url.match(/@([0-9.+-]+),([0-9.+-]+)/i);
+    if (atMatch) return { lat: Number(atMatch[1]), lng: Number(atMatch[2]) };
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const resolveMapUrl = async (url?: string | null): Promise<{ lat: number; lng: number } | null> => {
+  if (!url) return null;
+  const direct = parseLatLng(url);
+  if (direct) return direct;
+  try {
+    const resp = await fetch(url, { method: "HEAD", redirect: "follow" as any });
+    const finalUrl = resp.url || url;
+    return parseLatLng(finalUrl);
+  } catch {
+    return null;
+  }
+};
+
 // POST /customer/orders
 router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
   const user = req.user!;
@@ -152,6 +178,10 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
     pickupAddress,
     dropoffAddress,
   } = parsed.data;
+  const pickupMap = parsed.data.pickupMap || null;
+  const dropoffMap = parsed.data.dropoffMap || null;
+  const pickupCoords = await resolveMapUrl(pickupMap);
+  const dropoffCoords = await resolveMapUrl(dropoffMap);
 
   let storeUserId: string | undefined;
   let menuItemValidated: { id: string; name: string; price: number; promoPrice: number | null } | undefined;
@@ -198,6 +228,12 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
         customRegion,
         pickupAddress,
         dropoffAddress,
+        pickupMap,
+        dropoffMap,
+        pickupLat: pickupCoords?.lat,
+        pickupLng: pickupCoords?.lng,
+        dropoffLat: dropoffCoords?.lat,
+        dropoffLng: dropoffCoords?.lng,
       },
       select: {
         id: true,
@@ -212,6 +248,12 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
         customRegion: true,
         pickupAddress: true,
         dropoffAddress: true,
+        pickupMap: true,
+        dropoffMap: true,
+        pickupLat: true,
+        pickupLng: true,
+        dropoffLat: true,
+        dropoffLng: true,
       },
     });
     return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
@@ -223,8 +265,8 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
     initialStatus = "SEARCHING_DRIVER";
     const noteParts = [
       note,
-      parsed.data.pickupMap ? `Maps: ${parsed.data.pickupMap}` : "",
-      parsed.data.dropoffMap ? `DropoffMap: ${parsed.data.dropoffMap}` : "",
+      pickupMap ? `Maps: ${pickupMap}` : "",
+      dropoffMap ? `DropoffMap: ${dropoffMap}` : "",
     ].filter(Boolean);
     const pickupPhotoPath = req.file ? `/uploads/order-proofs/${req.file.filename}` : null;
     if (pickupPhotoPath) noteParts.push(`PickupPhoto: ${pickupPhotoPath}`);
@@ -241,6 +283,12 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
         orderType,
         pickupAddress,
         dropoffAddress,
+        pickupMap,
+        dropoffMap,
+        pickupLat: pickupCoords?.lat,
+        pickupLng: pickupCoords?.lng,
+        dropoffLat: dropoffCoords?.lat,
+        dropoffLng: dropoffCoords?.lng,
         pickupRegion: parsed.data.pickupRegion,
         dropoffRegion: parsed.data.dropoffRegion,
       },
@@ -254,6 +302,12 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
         orderType: true,
         pickupAddress: true,
         dropoffAddress: true,
+        pickupMap: true,
+        dropoffMap: true,
+        pickupLat: true,
+        pickupLng: true,
+        dropoffLat: true,
+        dropoffLng: true,
         pickupRegion: true,
         dropoffRegion: true,
       },
@@ -275,6 +329,12 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
       customStoreAddress,
       pickupAddress,
       dropoffAddress,
+      pickupMap,
+      dropoffMap,
+      pickupLat: pickupCoords?.lat,
+      pickupLng: pickupCoords?.lng,
+      dropoffLat: dropoffCoords?.lat,
+      dropoffLng: dropoffCoords?.lng,
     },
     select: {
       id: true,
@@ -288,6 +348,12 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
       customStoreAddress: true,
       pickupAddress: true,
       dropoffAddress: true,
+      pickupMap: true,
+      dropoffMap: true,
+      pickupLat: true,
+      pickupLng: true,
+      dropoffLat: true,
+      dropoffLng: true,
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       store: { select: { id: true, storeProfile: { select: { id: true, storeName: true } } } },
     },
@@ -347,7 +413,8 @@ router.patch("/:id/cancel", async (req: any, res) => {
 
   const isCustomSearching = order.orderType === "FOOD_CUSTOM_STORE" && order.status === "SEARCHING_DRIVER";
   const isStoreWaiting = order.orderType === "FOOD_EXISTING_STORE" && order.status === "WAITING_STORE_CONFIRM";
-  if (!isCustomSearching && !isStoreWaiting) {
+  const isRideSearching = order.orderType === "RIDE" && order.status === "SEARCHING_DRIVER";
+  if (!isCustomSearching && !isStoreWaiting && !isRideSearching) {
     return res.status(400).json({ ok: false, error: { message: "Pesanan tidak bisa dibatalkan pada status ini" } });
   }
 
@@ -383,6 +450,12 @@ router.get("/", async (req: any, res) => {
       customStoreAddress: true,
       pickupAddress: true,
       dropoffAddress: true,
+      pickupMap: true,
+      dropoffMap: true,
+      pickupLat: true,
+      pickupLng: true,
+      dropoffLat: true,
+      dropoffLng: true,
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       store: { select: { id: true, storeProfile: { select: { id: true, storeName: true } } } },
       driver: { select: { id: true, username: true, email: true, phone: true, driverProfile: { select: { facePhotoUrl: true } } } },
@@ -412,6 +485,12 @@ router.get("/active", async (req: any, res) => {
       customStoreAddress: true,
       pickupAddress: true,
       dropoffAddress: true,
+      pickupMap: true,
+      dropoffMap: true,
+      pickupLat: true,
+      pickupLng: true,
+      dropoffLat: true,
+      dropoffLng: true,
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, photoUrl: true, address: true } } } },
       driver: { select: { id: true, username: true, email: true, phone: true, driverProfile: { select: { facePhotoUrl: true } } } },

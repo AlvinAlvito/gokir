@@ -4,6 +4,7 @@ import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
 import { Modal } from "../../components/ui/modal";
+import RideRoutePreview from "../../components/ride/RideRoutePreview";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -23,6 +24,12 @@ type Order = {
   id: string;
   status: Status;
   orderType: OrderType;
+  pickupMap?: string | null;
+  dropoffMap?: string | null;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+  dropoffLat?: number | null;
+  dropoffLng?: number | null;
   paymentMethod?: string | null;
   quantity?: number | null;
   note?: string | null;
@@ -101,6 +108,15 @@ const toProof = (path?: string | null) => {
   return url.replace(/ /g, "%20");
 };
 
+const parseLatLngFromUrl = (url?: string | null): { lat: number; lng: number } | null => {
+  if (!url) return null;
+  const q = url.match(/q=([0-9.+-]+),([0-9.+-]+)/i);
+  if (q) return { lat: Number(q[1]), lng: Number(q[2]) };
+  const at = url.match(/@([0-9.+-]+),([0-9.+-]+)/i);
+  if (at) return { lat: Number(at[1]), lng: Number(at[2]) };
+  return null;
+};
+
 const parseNote = (note?: string | null) => {
   const proofsPickup: string[] = [];
   const proofsDelivery: string[] = [];
@@ -120,6 +136,18 @@ const parseNote = (note?: string | null) => {
     cleaned = cleaned.replace(/PickupProof:[^\n]*/gi, "").replace(/DeliveryProof:[^\n]*/gi, "").trim();
   }
   return { noteText: cleaned, proofsPickup, proofsDelivery };
+};
+
+const parseRideMeta = (
+  note?: string | null,
+  orderExtra?: { pickupMap?: string | null; dropoffMap?: string | null }
+) => {
+  const pickupMap = note?.match(/PickupMap:\s*(https?:\S+)/i)?.[1] || note?.match(/Maps:\s*(https?:\S+)/i)?.[1] || null;
+  const dropoffMap = note?.match(/DropoffMap:\s*(https?:\S+)/i)?.[1] || null;
+  const urls = note?.match(/https?:\S+/g) || [];
+  const fallbackPickup = pickupMap || urls[0] || orderExtra?.pickupMap || null;
+  const fallbackDrop = dropoffMap || urls[1] || orderExtra?.dropoffMap || null;
+  return { pickupMap: fallbackPickup, dropoffMap: fallbackDrop };
 };
 
 const waLink = (phone?: string | null) => {
@@ -164,6 +192,7 @@ export default function CustomerOrderProsesPage() {
   useEffect(() => { fetchOrder(); }, [id]);
 
   const { noteText, proofsPickup, proofsDelivery } = parseNote(order?.note);
+  const rideMeta = order?.orderType === "RIDE" ? parseRideMeta(order?.note, { pickupMap: order?.pickupMap, dropoffMap: order?.dropoffMap }) : null;
   const steps = order?.orderType === "RIDE" ? stepItemsRide : stepItemsFood;
   const currentStepIndex = useMemo(() => order ? steps.findIndex((s) => s.key === order.status) : -1, [order, steps]);
 
@@ -248,6 +277,14 @@ export default function CustomerOrderProsesPage() {
           </div>
 
           <div className="space-y-3">
+            {order.orderType === "RIDE" && rideMeta ? (
+              <RideRoutePreview
+                pickupUrl={rideMeta.pickupMap || undefined}
+                dropoffUrl={rideMeta.dropoffMap || undefined}
+                pickupCoord={order.pickupLat && order.pickupLng ? { lat: order.pickupLat, lng: order.pickupLng } : undefined}
+                dropoffCoord={order.dropoffLat && order.dropoffLng ? { lat: order.dropoffLat, lng: order.dropoffLng } : undefined}
+              />
+            ) : null}
             {steps.map((s: StepItem, idx: number) => {
               const active = currentStepIndex >= idx && currentStepIndex !== -1;
               const desc = stepDescOverride[s.key] || s.desc;
@@ -351,7 +388,8 @@ export default function CustomerOrderProsesPage() {
           <div className="flex items-center gap-3 flex-wrap">
             <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
             {((order.orderType === "FOOD_CUSTOM_STORE" && order.status === "SEARCHING_DRIVER") ||
-              (order.orderType === "FOOD_EXISTING_STORE" && order.status === "WAITING_STORE_CONFIRM")) && (
+              (order.orderType === "FOOD_EXISTING_STORE" && order.status === "WAITING_STORE_CONFIRM") ||
+              (order.orderType === "RIDE" && order.status === "SEARCHING_DRIVER")) && (
               <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)} className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20">
                 Batalkan pesanan
               </Button>
@@ -452,7 +490,7 @@ export default function CustomerOrderProsesPage() {
           </div>
           <div className="space-y-2 text-center">
             <p className="text-lg font-semibold text-gray-800 dark:text-white/90">Batalkan pesanan?</p>
-            <p className="text-sm text-gray-600 dark:text-gray-300">Pesanan custom ini masih mencari driver. Yakin ingin membatalkan?</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">Pesanan masih dalam proses awal. Yakin ingin membatalkan?</p>
           </div>
           <div className="flex justify-center gap-3">
             <Button variant="outline" size="sm" onClick={() => setCancelOpen(false)}>Batal</Button>

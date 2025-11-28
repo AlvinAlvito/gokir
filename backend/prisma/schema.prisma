@@ -322,6 +322,12 @@ model CustomerOrder {
   dropoffRegion      DriverRegion?
   pickupAddress      String?
   dropoffAddress     String?
+  pickupMap          String?
+  dropoffMap         String?
+  pickupLat          Float?
+  pickupLng          Float?
+  dropoffLat         Float?
+  dropoffLng         Float?
   createdAt      DateTime @default(now())
 
   customer       User      @relation("CustomerOrders", fields: [customerId], references: [id])
