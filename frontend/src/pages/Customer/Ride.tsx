@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import PageMeta from "../../components/common/PageMeta";
 import Button from "../../components/ui/button/Button";
 import Input from "../../components/form/input/InputField";
@@ -13,6 +13,15 @@ const regionOptions = [
   { label: "Kampus UINSU Tuntungan", value: "KAMPUS_TUNTUNGAN" },
   { label: "Wilayah Lainnya (muncul di semua wilayah)", value: "WILAYAH_LAINNYA" },
 ];
+
+type Pricing = {
+  under1Km: number;
+  km1To1_5: number;
+  km1_5To2: number;
+  km2To2_5: number;
+  km2_5To3: number;
+  above3PerKm: number;
+};
 
 type RideForm = {
   pickupRegion: string;
@@ -42,6 +51,7 @@ export default function RideOrderPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
+  const [pricing, setPricing] = useState<Pricing | null>(null);
 
   const parseLatLngLocal = (url: string): { lat: number; lng: number } | null => {
     try {
@@ -90,11 +100,22 @@ export default function RideOrderPage() {
     }
     const straight = haversineKm(p, d);
     const distance = straight * 1.3; // faktor koreksi jalan
-    const baseFare = 4000;
-    const perKm = 2000;
-    const est = Math.max(baseFare, Math.round(baseFare + distance * perKm));
     setDistanceKm(Number(distance.toFixed(2)));
-    setForm((prev) => ({ ...prev, price: est }));
+    let est = 0;
+    const cfg = pricing;
+    if (cfg) {
+      if (distance < 1) est = cfg.under1Km;
+      else if (distance < 1.5) est = cfg.km1To1_5;
+      else if (distance < 2) est = cfg.km1_5To2;
+      else if (distance < 2.5) est = cfg.km2To2_5;
+      else if (distance < 3) est = cfg.km2_5To3;
+      else est = cfg.km2_5To3 + Math.max(0, distance - 3) * cfg.above3PerKm;
+    } else {
+      const baseFare = 4000;
+      const perKm = 2000;
+      est = Math.max(baseFare, Math.round(baseFare + distance * perKm));
+    }
+    setForm((prev) => ({ ...prev, price: Math.round(est) }));
     return true;
   };
 
@@ -153,6 +174,23 @@ export default function RideOrderPage() {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, pickupRegion: "", dropoffRegion: "" }));
+  }, []);
+
+  useEffect(() => {
+    const loadPricing = async () => {
+      try {
+        const r = await fetch(`${API_URL}/pricing/delivery`, { credentials: "include" });
+        const j = await r.json();
+        if (r.ok && j?.ok) setPricing(j.data.pricing);
+      } catch {
+        // ignore
+      }
+    };
+    loadPricing();
+  }, []);
 
   return (
     <>
