@@ -136,13 +136,74 @@ const resolveMapUrl = async (url?: string | null): Promise<{ lat: number; lng: n
   if (!url) return null;
   const direct = parseLatLng(url);
   if (direct) return direct;
-  try {
-    const resp = await fetch(url, { method: "HEAD", redirect: "follow" as any });
-    const finalUrl = resp.url || url;
-    return parseLatLng(finalUrl);
-  } catch {
+  const ua = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36" };
+
+  const parseFromHtml = (html: string) => {
+    const qMatch = html.match(/q=([0-9.+-]+),([0-9.+-]+)/i);
+    if (qMatch) return { lat: Number(qMatch[1]), lng: Number(qMatch[2]) };
+    const bangAll = [...html.matchAll(/!3d([0-9.+-]+)!4d([0-9.+-]+)/gi)];
+    if (bangAll.length > 0) {
+      const last = bangAll[bangAll.length - 1];
+      return { lat: Number(last[1]), lng: Number(last[2]) };
+    }
+    const atAll = [...html.matchAll(/@([0-9.+-]+),([0-9.+-]+)/gi)];
+    if (atAll.length > 0) {
+      const last = atAll[atAll.length - 1];
+      return { lat: Number(last[1]), lng: Number(last[2]) };
+    }
     return null;
+  };
+  const parseMetaRefresh = (html: string) => {
+    const meta = html.match(/http-equiv=["']refresh["'][^>]*content=["'][^'"]*url=([^"']+)/i);
+    if (meta && meta[1]) {
+      try {
+        return decodeURIComponent(meta[1]);
+      } catch {
+        return meta[1];
+      }
+    }
+    return null;
+  };
+
+  // Manual redirect walker (GET, no auto-follow) up to 5 hops
+  let current = url;
+  for (let i = 0; i < 5; i++) {
+    try {
+      const resp = await fetch(current, { method: "GET", redirect: "manual" as any, headers: ua });
+      const parsedUrl = parseLatLng(resp.url || current);
+      if (parsedUrl) return parsedUrl;
+      const loc = resp.headers.get("location");
+      if (!loc) {
+        const html = await resp.text();
+        const metaUrl = parseMetaRefresh(html);
+        if (metaUrl) {
+          current = metaUrl;
+          continue;
+        }
+        const htmlParsed = parseFromHtml(html);
+        if (htmlParsed) return htmlParsed;
+        break;
+      }
+      try {
+        const next = new URL(loc, current).toString();
+        current = next;
+      } catch {
+        current = loc;
+      }
+    } catch { /* ignore and break */ break; }
   }
+
+  // Final GET follow attempt
+  try {
+    const resp = await fetch(current, { method: "GET", redirect: "follow" as any, headers: ua });
+    const parsedFinal = parseLatLng(resp.url || current);
+    if (parsedFinal) return parsedFinal;
+    const html = await resp.text();
+    const fromHtml = parseFromHtml(html);
+    if (fromHtml) return fromHtml;
+  } catch { /* ignore */ }
+
+  return null;
 };
 
 // POST /customer/orders
@@ -266,7 +327,9 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
     initialStatus = "SEARCHING_DRIVER";
     const customRegion = parsed.data.customRegion || "WILAYAH_LAINNYA";
     const addressHasUrl = customStoreAddress && /^https?:\/\//i.test(customStoreAddress);
-    pickupMap = pickupMapRaw || (addressHasUrl ? customStoreAddress : null);
+    // pickup = lokasi toko luar
+    pickupMap = pickupMapRaw || (addressHasUrl ? customStoreAddress : null) || mapFromNote || null;
+    // dropoff = lokasi customer
     dropoffMap = dropoffMapRaw || mapFromNote || null;
     pickupCoords = await resolveMapUrl(pickupMap || undefined);
     dropoffCoords = await resolveMapUrl(dropoffMap || undefined);
