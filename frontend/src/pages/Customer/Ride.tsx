@@ -36,14 +36,90 @@ export default function RideOrderPage() {
     dropoffMap: "",
     price: 6000,
   });
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [showEstimate, setShowEstimate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successOpen, setSuccessOpen] = useState(false);
 
+  const parseLatLngLocal = (url: string): { lat: number; lng: number } | null => {
+    try {
+      const qMatch = url.match(/q=([0-9.+-]+),([0-9.+-]+)/i);
+      if (qMatch) return { lat: Number(qMatch[1]), lng: Number(qMatch[2]) };
+      const atMatch = url.match(/@([0-9.+-]+),([0-9.+-]+)/i);
+      if (atMatch) return { lat: Number(atMatch[1]), lng: Number(atMatch[2]) };
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const haversineKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+
+  const resolveLatLng = async (url: string) => {
+    const local = parseLatLngLocal(url);
+    if (local) return local;
+    try {
+      const r = await fetch(`${API_URL}/utils/resolve-map?url=${encodeURIComponent(url)}`, { credentials: "include" });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) return null;
+      if (j.data?.lat && j.data?.lng) return { lat: j.data.lat, lng: j.data.lng };
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const recomputeFare = async (pickupMap: string, dropoffMap: string) => {
+    const [p, d] = await Promise.all([resolveLatLng(pickupMap), resolveLatLng(dropoffMap)]);
+    if (!p || !d) {
+      setDistanceKm(null);
+      return false;
+    }
+    const straight = haversineKm(p, d);
+    const distance = straight * 1.3; // faktor koreksi jalan
+    const baseFare = 4000;
+    const perKm = 2000;
+    const est = Math.max(baseFare, Math.round(baseFare + distance * perKm));
+    setDistanceKm(Number(distance.toFixed(2)));
+    setForm((prev) => ({ ...prev, price: est }));
+    return true;
+  };
+
+  const handleEstimate = async () => {
+    if (!form.pickupMap || !form.dropoffMap) {
+      setError("Isi link Maps penjemputan dan tujuan dulu, lalu tekan cek estimasi.");
+      return;
+    }
+    const ok = await recomputeFare(form.pickupMap, form.dropoffMap);
+    if (ok) {
+      setShowEstimate(true);
+      setError(null);
+    } else {
+      setShowEstimate(false);
+      setError("Link Maps tidak valid, pastikan ada koordinat lat,lng di URL.");
+    }
+  };
+
   const handleSubmit = async () => {
     if (!form.pickupRegion || !form.dropoffRegion || !form.pickupAddress || !form.dropoffAddress) {
       setError("Lengkapi wilayah dan alamat penjemputan/tujuan");
+      return;
+    }
+    if (!showEstimate) {
+      setError("Silakan cek estimasi harga dulu.");
       return;
     }
     try {
@@ -109,7 +185,16 @@ export default function RideOrderPage() {
               </div>
               <div>
                 <label className="text-sm text-gray-700 dark:text-white/80">Link Maps lokasi penjemputan</label>
-                <Input value={form.pickupMap} onChange={(e: any) => setForm((p) => ({ ...p, pickupMap: e.target.value }))} placeholder="https://maps.google.com/..." />
+                <Input
+                  value={form.pickupMap}
+                  onChange={(e: any) => {
+                    const val = e.target.value;
+                    setForm((p) => ({ ...p, pickupMap: val }));
+                    setShowEstimate(false);
+                    setDistanceKm(null);
+                  }}
+                  placeholder="https://maps.google.com/..."
+                />
               </div>
               <div>
                 <label className="text-sm text-gray-700 dark:text-white/80">Upload foto sekitar lokasi penjemputan</label>
@@ -137,14 +222,35 @@ export default function RideOrderPage() {
               </div>
               <div>
                 <label className="text-sm text-gray-700 dark:text-white/80">Link Maps lokasi tujuan</label>
-                <Input value={form.dropoffMap} onChange={(e: any) => setForm((p) => ({ ...p, dropoffMap: e.target.value }))} placeholder="https://maps.google.com/..." />
+                <Input
+                  value={form.dropoffMap}
+                  onChange={(e: any) => {
+                    const val = e.target.value;
+                    setForm((p) => ({ ...p, dropoffMap: val }));
+                    setShowEstimate(false);
+                    setDistanceKm(null);
+                  }}
+                  placeholder="https://maps.google.com/..."
+                />
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
+            <Button size="sm" variant="outline" onClick={handleEstimate} disabled={submitting}>
+              Cek estimasi harga
+            </Button>
             <label className="text-sm text-gray-700 dark:text-white/80">Estimasi harga</label>
-            <Input type="number" min={0} value={form.price} onChange={(e: any) => setForm((p) => ({ ...p, price: Number(e.target.value) || 0 }))} />
+            {showEstimate ? (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5 px-3 py-2">
+                <p className="text-sm text-gray-800 dark:text-white/90">Rp {form.price.toLocaleString("id-ID")}</p>
+                {distanceKm !== null && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Perkiraan jarak: {distanceKm} km (garis lurus x1.3)</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 dark:text-gray-400">Isi link Maps, lalu tekan cek estimasi untuk melihat estimasi harga.</p>
+            )}
           </div>
 
           <div className="flex justify-end">

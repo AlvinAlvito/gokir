@@ -14,6 +14,7 @@ type CartStore = {
   storeProfileId: string;
   storeName?: string | null;
   storePhotoUrl?: string | null;
+  storeMap?: string | null;
   items: CartItem[];
   orderType?: "FOOD_EXISTING_STORE" | "FOOD_CUSTOM_STORE";
   customStoreName?: string | null;
@@ -28,6 +29,8 @@ type CheckoutModal = {
   payment: "CASH" | "QRIS";
   address: string;
   maps: string;
+  showEstimate: boolean;
+  distanceKm: number | null;
   submitting: boolean;
 };
 
@@ -56,7 +59,16 @@ export default function CustomerCartPage() {
   const [cart, setCart] = useState<CartState>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [modal, setModal] = useState<CheckoutModal>({ storeId: null, note: "", payment: "CASH", address: "", maps: "", submitting: false });
+  const [modal, setModal] = useState<CheckoutModal>({
+    storeId: null,
+    note: "",
+    payment: "CASH",
+    address: "",
+    maps: "",
+    showEstimate: false,
+    distanceKm: null,
+    submitting: false,
+  });
   const [activeWarning, setActiveWarning] = useState(false);
 
   useEffect(() => {
@@ -78,7 +90,16 @@ export default function CustomerCartPage() {
   const openCheckout = (storeId: string) => {
     const entry = cart[storeId];
     if (!entry) return;
-    setModal({ storeId, note: "", payment: "CASH", address: "", maps: "", submitting: false });
+    setModal({
+      storeId,
+      note: "",
+      payment: "CASH",
+      address: "",
+      maps: "",
+      showEstimate: false,
+      distanceKm: null,
+      submitting: false,
+    });
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -91,7 +112,76 @@ export default function CustomerCartPage() {
     }
   };
 
-  const closeModal = () => setModal({ storeId: null, note: "", payment: "CASH", address: "", maps: "", submitting: false });
+  const closeModal = () =>
+    setModal({
+      storeId: null,
+      note: "",
+      payment: "CASH",
+      address: "",
+      maps: "",
+      showEstimate: false,
+      distanceKm: null,
+      submitting: false,
+    });
+
+  const parseLatLngLocal = (url: string): { lat: number; lng: number } | null => {
+    try {
+      const qMatch = url.match(/q=([0-9.+-]+),([0-9.+-]+)/i);
+      if (qMatch) return { lat: Number(qMatch[1]), lng: Number(qMatch[2]) };
+      const atMatch = url.match(/@([0-9.+-]+),([0-9.+-]+)/i);
+      if (atMatch) return { lat: Number(atMatch[1]), lng: Number(atMatch[2]) };
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const resolveLatLng = async (url: string) => {
+    const local = parseLatLngLocal(url);
+    if (local) return local;
+    try {
+      const r = await fetch(`${API_URL}/utils/resolve-map?url=${encodeURIComponent(url)}`, { credentials: "include" });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) return null;
+      if (j.data?.lat && j.data?.lng) return { lat: j.data.lat, lng: j.data.lng };
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const haversineKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+
+  const handleEstimate = async (storeMap?: string | null) => {
+    if (!storeMap || !modal.maps) {
+      setError("Pastikan link Maps toko dan lokasi Anda terisi, lalu cek estimasi.");
+      return;
+    }
+    const [p, d] = await Promise.all([resolveLatLng(storeMap), resolveLatLng(modal.maps)]);
+    if (!p || !d) {
+      setError("Gagal membaca koordinat dari link Maps.");
+      setModal((pState) => ({ ...pState, showEstimate: false, distanceKm: null }));
+      return;
+    }
+    const straight = haversineKm(p, d);
+    const distance = straight * 1.3;
+    const baseFare = 4000;
+    const perKm = 2000;
+    const est = Math.max(baseFare, Math.round(baseFare + distance * perKm));
+    setModal((pState) => ({ ...pState, showEstimate: true, distanceKm: Number(distance.toFixed(2)) }));
+    setMsg(`Estimasi harga Rp${est.toLocaleString("id-ID")}`);
+  };
 
   const placeOrder = async () => {
     if (!modal.storeId) return;
@@ -99,6 +189,14 @@ export default function CustomerCartPage() {
     if (!entry || entry.items.length === 0) return;
     const orderType = entry.orderType || "FOOD_EXISTING_STORE";
     const hasMaps = modal.maps ? `Maps: ${modal.maps}` : "";
+    if (!modal.note.trim() || !modal.address.trim() || !modal.maps.trim()) {
+      setError("Semua kolom wajib diisi.");
+      return;
+    }
+    if (!modal.showEstimate) {
+      setError("Silakan cek estimasi harga terlebih dahulu.");
+      return;
+    }
 
     try {
       setModal((p) => ({ ...p, submitting: true }));
@@ -161,6 +259,7 @@ export default function CustomerCartPage() {
   };
 
   const cartStores = Object.values(cart);
+  const modalEntry = modal.storeId ? cart[modal.storeId] : undefined;
 
   return (
     <>
@@ -245,7 +344,11 @@ export default function CustomerCartPage() {
             <div className="space-y-3">
               <div>
                 <Label>Catatan untuk penjual</Label>
-                <Input value={modal.note} onChange={(e: any) => setModal((p) => ({ ...p, note: e.target.value }))} placeholder="Mis. tanpa sambal" />
+                <Input
+                  value={modal.note}
+                  onChange={(e: any) => setModal((p) => ({ ...p, note: e.target.value }))}
+                  placeholder="Mis. tanpa sambal"
+                />
               </div>
               <div>
                 <Label>Pembayaran</Label>
@@ -257,12 +360,54 @@ export default function CustomerCartPage() {
               </div>
               <div>
                 <Label>Alamat tujuan</Label>
-                <Input value={modal.address} onChange={(e: any) => setModal((p) => ({ ...p, address: e.target.value }))} placeholder="Jl xx No xx, Kos xx" />
+                <Input
+                  value={modal.address}
+                  onChange={(e: any) => setModal((p) => ({ ...p, address: e.target.value }))}
+                  placeholder="Jl xx No xx, Kos xx"
+                />
               </div>
+              {modalEntry?.orderType === "FOOD_CUSTOM_STORE" && modalEntry?.customStoreAddress && (
+                <div>
+                  <Label>Lokasi toko (Maps)</Label>
+                  <Input value={modalEntry.customStoreAddress} disabled />
+                </div>
+              )}
+              {modalEntry?.orderType !== "FOOD_CUSTOM_STORE" && modalEntry?.storeMap && (
+                <div>
+                  <Label>Lokasi toko (Maps)</Label>
+                  <Input value={modalEntry.storeMap} disabled />
+                </div>
+              )}
               <div>
-                <Label>Link Google Maps (terisi otomatis)</Label>
-                <Input value={modal.maps} onChange={(e: any) => setModal((p) => ({ ...p, maps: e.target.value }))} placeholder="https://www.google.com/maps?q=..." />
+                <Label>Lokasi anda pada maps</Label>
+                <Input
+                  value={modal.maps}
+                  onChange={(e: any) => setModal((p) => ({ ...p, maps: e.target.value, showEstimate: false, distanceKm: null }))}
+                  placeholder="https://www.google.com/maps?q=..."
+                />
               </div>
+              {((modalEntry?.orderType !== "FOOD_CUSTOM_STORE" && modalEntry?.storeMap) || (modalEntry?.orderType === "FOOD_CUSTOM_STORE" && modalEntry?.customStoreAddress)) && (
+                <div className="space-y-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEstimate(modalEntry?.orderType === "FOOD_CUSTOM_STORE" ? modalEntry.customStoreAddress : modalEntry.storeMap)}
+                    disabled={modal.submitting}
+                  >
+                    Cek estimasi harga
+                  </Button>
+                  {modal.showEstimate ? (
+                    <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-white/5 px-3 py-2">
+                      <p className="text-sm text-gray-800 dark:text-white/90">{msg || "Estimasi siap"}</p>
+                      {modal.distanceKm !== null && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Perkiraan jarak: {modal.distanceKm} km (garis lurus x1.3)</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Isi lokasi Anda lalu tekan cek estimasi untuk melihat estimasi ongkir.</p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex items-center justify-end gap-3">
               <Button variant="outline" size="sm" onClick={closeModal}>Batal</Button>

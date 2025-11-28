@@ -38,6 +38,7 @@ import storeOrdersRoute from "@/routes/store/orders";
 import webhookMidtrans from "@/routes/webhook/midtrans";
 import storeProfileRoute from "@/routes/store/profile";
 import statsRoute from "@/routes/stats";
+import utilsRoute from "@/routes/utils";
 
 const app = express();
 
@@ -115,6 +116,7 @@ app.use("/stats", statsRoute);
 app.use("/customer/profile", customerProfileRoute);
 app.use("/customer/stores", requireAuth, customerStoresRoute);
 app.use("/customer/orders", requireAuth, customerOrdersRoute);
+app.use("/utils", requireAuth, utilsRoute);
 
 // 404 JSON fallback
 app.use((req, res) => {

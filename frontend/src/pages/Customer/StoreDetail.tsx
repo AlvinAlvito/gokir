@@ -45,7 +45,7 @@ type StoreProfile = {
 };
 
 type CartItem = { itemId: string; name: string; price: number; promoPrice?: number | null; qty: number; photoUrl?: string | null };
-type CartStore = { storeProfileId: string; storeName?: string | null; storePhotoUrl?: string | null; items: CartItem[] };
+type CartStore = { storeProfileId: string; storeName?: string | null; storePhotoUrl?: string | null; storeMap?: string | null; items: CartItem[] };
 type CartState = Record<string, CartStore>;
 
 const toAbs = (rel?: string | null) => {
@@ -116,7 +116,15 @@ export default function StoreDetailPage() {
   const addToCart = (item: MenuItem) => {
     if (!store) return;
     const currentCart = loadCart();
-    const storeEntry: CartStore = currentCart[store.id] ?? { storeProfileId: store.id, storeName: store.storeName, storePhotoUrl: store.photoUrl, items: [] };
+    const storeEntry: CartStore = currentCart[store.id] ?? {
+      storeProfileId: store.id,
+      storeName: store.storeName,
+      storePhotoUrl: store.photoUrl,
+      storeMap: store.mapsUrl || store.user.storeAvailability?.locationUrl || null,
+      items: [],
+    };
+    // pastikan update map jika baru ada
+    storeEntry.storeMap = store.mapsUrl || store.user.storeAvailability?.locationUrl || storeEntry.storeMap || null;
     const qty = qtyMap[item.id] ?? 1;
     const existingIdx = storeEntry.items.findIndex((it) => it.itemId === item.id);
     if (existingIdx >= 0) {
