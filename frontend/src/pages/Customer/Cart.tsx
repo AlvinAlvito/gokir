@@ -338,6 +338,7 @@ export default function CustomerCartPage() {
   return (
     <>
       <PageMeta title="Keranjang" description="Ringkasan pesanan Anda" />
+      <h1 className="text-2xl font-semibold text-gray-800 dark:text-white/90 mb-2">Keranjang Kamu</h1>
       {msg && <div className="text-sm text-emerald-600 dark:text-emerald-400">{msg}</div>}
       {error && <div className="text-sm text-amber-600 dark:text-amber-400">{error}</div>}
 

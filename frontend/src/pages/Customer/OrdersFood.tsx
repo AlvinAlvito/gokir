@@ -84,6 +84,7 @@ export default function OrdersFoodPage() {
     payment: "CASH",
     items: [{ id: "item-1", name: "", qty: 1, price: 0 }],
   });
+  const [customSuccess, setCustomSuccess] = useState(false);
   const navigate = useNavigate();
 
   const fetchStores = async (regionParam?: string) => {
@@ -106,6 +107,7 @@ export default function OrdersFoodPage() {
   useEffect(() => { fetchStores(); }, []);
 
   const filtered = useMemo(() => stores, [stores]);
+  const regionLabel = useMemo(() => regionOptions.find((r) => r.value === region)?.label || "", [region]);
 
   const addCustomItem = () => {
     setCustomStore((p) => ({
@@ -153,8 +155,8 @@ export default function OrdersFoodPage() {
       customRegion: customStore.region || "WILAYAH_LAINNYA",
     };
     saveCart(cart);
-    setMsg("Pesanan custom ditambahkan ke keranjang");
     setCustomOpen(false);
+    setCustomSuccess(true);
   };
 
   return (
@@ -163,8 +165,8 @@ export default function OrdersFoodPage() {
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90">Pilih Toko</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Filter berdasarkan wilayah, lalu lihat menu.</p>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90">Pilih Toko untuk belanja</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Toko yang ditampilkan berada di Wilayah {regionLabel}</p>
           </div>
           <div className="w-64">
             <Select
@@ -214,7 +216,7 @@ export default function OrdersFoodPage() {
       </div>
 
       <Modal isOpen={customOpen} onClose={() => setCustomOpen(false)} className="max-w-2xl m-4">
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Pesan makanan custom</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -222,7 +224,7 @@ export default function OrdersFoodPage() {
               <Input value={customStore.name} onChange={(e: any) => setCustomStore((p) => ({ ...p, name: e.target.value }))} placeholder="Contoh: Warung Bu Ani" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Wilayah</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-white/80">Wilayah Toko</label>
               <Select
                 options={[
                   { label: "Kampus UINSU Sutomo", value: "KAMPUS_SUTOMO" },
@@ -243,14 +245,14 @@ export default function OrdersFoodPage() {
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="font-semibold text-gray-800 dark:text-white/90">Daftar menu</p>
+              <p className="font-semibold text-gray-800 dark:text-white/90">Daftar menu yang ingin anda pesan</p>
               <Button size="xs" variant="outline" onClick={addCustomItem}>Tambah menu</Button>
             </div>
             <div className="space-y-3">
               {customStore.items.map((it, idx) => (
-                <div key={it.id} className="grid grid-cols-1 sm:grid-cols-3 gap-3 border border-gray-100 dark:border-gray-800 rounded-xl p-3">
+                <div key={it.id} className="grid grid-cols-1 sm:grid-cols-4 gap-3 border border-gray-100 dark:border-gray-800 rounded-xl p-3">
                   <div>
-                    <label className="text-sm text-gray-600 dark:text-gray-300">Nama item {idx + 1}</label>
+                    <label className="text-sm text-gray-600 dark:text-gray-300">Nama menu {idx + 1}</label>
                     <Input value={it.name} onChange={(e: any) => updateCustomItem(it.id, "name", e.target.value)} placeholder="Nasi Goreng" />
                   </div>
                   <div>
@@ -260,6 +262,16 @@ export default function OrdersFoodPage() {
                   <div>
                     <label className="text-sm text-gray-600 dark:text-gray-300">Harga satuan</label>
                     <Input type="number" min={0} value={it.price} onChange={(e: any) => updateCustomItem(it.id, "price", e.target.value)} />
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setCustomStore((p) => ({ ...p, items: p.items.filter((x) => x.id !== it.id) }))}
+                      disabled={customStore.items.length === 1}
+                    >
+                      Hapus
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -278,6 +290,17 @@ export default function OrdersFoodPage() {
           <div className="flex justify-end gap-3">
             <Button variant="outline" size="sm" onClick={() => setCustomOpen(false)}>Batal</Button>
             <Button size="sm" onClick={addCustomToCart}>Tambahkan ke keranjang</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={customSuccess} onClose={() => setCustomSuccess(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-4 text-center">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Berhasil</h3>
+          <p className="text-sm text-gray-700 dark:text-gray-300">Menu sudah ditambahkan ke keranjang Anda. Silakan lanjutkan proses transaksi di keranjang.</p>
+          <div className="flex justify-center gap-3">
+            <Button size="sm" variant="outline" onClick={() => setCustomSuccess(false)}>Tutup</Button>
+            <Button size="sm" onClick={() => navigate("/cart")}>Lihat keranjang</Button>
           </div>
         </div>
       </Modal>
