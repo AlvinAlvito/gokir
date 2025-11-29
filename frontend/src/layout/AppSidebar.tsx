@@ -1,15 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import {
-  
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
   ListIcon,
-  PageIcon,
   PlugInIcon,
   TableIcon,
   UserCircleIcon,
+  PaperPlaneIcon,
+  BoxCubeIcon,
+  BoxIcon,
+  TaskIcon,
+  DollarLineIcon,
+  TimeIcon,
+  DocsIcon,
+  GroupIcon,
+  UserIcon,
+  PieChartIcon,
+  AlertIcon,
+  MailIcon,
+  CheckLineIcon,
 } from "../icons";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
@@ -28,33 +39,33 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   CUSTOMER: [
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/customer" },
     { icon: <UserCircleIcon />, name: "Profil", path: "/profile/customer" },
-    { icon: <ListIcon />, name: "Antar Penumpang", path: "/orders/ride" },
-    { icon: <ListIcon />, name: "Pesan Makanan", path: "/orders/food" },
-    { icon: <TableIcon />, name: "Keranjang", path: "/cart" },
-    { icon: <TableIcon />, name: "Order Proses", path: "/orders/active" },
+    { icon: <PaperPlaneIcon />, name: "Antar Penumpang", path: "/orders/ride" },
+    { icon: <BoxCubeIcon />, name: "Pesan Makanan", path: "/orders/food" },
+    { icon: <BoxIcon />, name: "Keranjang", path: "/cart" },
+    { icon: <TaskIcon />, name: "Order Proses", path: "/orders/active" },
     { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/orders" },
-    { icon: <PageIcon />, name: "Tutorial & Support", path: "/tutorial-support/customer" },
+    { icon: <DocsIcon />, name: "Tutorial & Support", path: "/tutorial-support/customer" },
 
   ],
  STORE: [
      { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/store" },
      { icon: <UserCircleIcon />, name: "Profil Toko", path: "/profile/store" },
-    { icon: <PageIcon />, name: "Ketersediaan", path: "/store/availability" },
-    { icon: <PageIcon />, name: "Tiket", path: "/store/tickets" },
+    { icon: <TimeIcon />, name: "Ketersediaan", path: "/store/availability" },
+    { icon: <DollarLineIcon />, name: "Tiket", path: "/store/tickets" },
     { icon: <ListIcon />, name: "Menu", path: "/store/menu" },
-    { icon: <TableIcon />, name: "Pesanan", path: "/pesanan/store" },
+    { icon: <TaskIcon />, name: "Pesanan", path: "/pesanan/store" },
     { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/store/orders" },
-    { icon: <PageIcon />, name: "Tutorial & Support", path: "/tutorial-support/store" },
+    { icon: <DocsIcon />, name: "Tutorial & Support", path: "/tutorial-support/store" },
   ],
   DRIVER: [
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/driver" },
     { icon: <UserCircleIcon />, name: "Profil", path: "/profile/driver" },
-    { icon: <PageIcon />, name: "Ketersediaan", path: "/driver/availability" },
-    { icon: <PageIcon />, name: "Tiket", path: "/driver/tickets" },
+    { icon: <TimeIcon />, name: "Ketersediaan", path: "/driver/availability" },
+    { icon: <DollarLineIcon />, name: "Tiket", path: "/driver/tickets" },
     { icon: <ListIcon />, name: "List Order", path: "/driver/list-order" },
-    { icon: <TableIcon />, name: "Order Proses", path: "/driver/order-proses" },
+    { icon: <TaskIcon />, name: "Order Proses", path: "/driver/order-proses" },
     { icon: <TableIcon />, name: "Riwayat Transaksi", path: "/driver/orders" },
-    { icon: <PageIcon />, name: "Tutorial & Support", path: "/tutorial-support/driver" },
+    { icon: <DocsIcon />, name: "Tutorial & Support", path: "/tutorial-support/driver" },
 
 
 
@@ -62,26 +73,26 @@ const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   ADMIN: [
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/admin" },
     {
-      icon: <ListIcon />,
+      icon: <CheckLineIcon />,
       name: "Verifikasi",
       subItems: [{ name: "Driver", path: "/admin/driver" }, { name: "Toko", path: "/admin/toko" }],
     },
-    { icon: <PageIcon />, name: "Announcements", path: "/admin/announcements" },
-    { icon: <GridIcon />, name: "Driver", path: "/driver/admin" },
-    { icon: <GridIcon />, name: "Toko", path: "/toko/admin" },
+    { icon: <MailIcon />, name: "Announcements", path: "/admin/announcements" },
+    { icon: <UserIcon />, name: "Driver", path: "/driver/admin" },
+    { icon: <BoxIcon />, name: "Toko", path: "/toko/admin" },
   ],
 
   SUPERADMIN: [
     { icon: <GridIcon />, name: "Dashboard", path: "/dashboard/superadmin" },
-    { icon: <PageIcon />, name: "Announcements", path: "/superadmin/announcements" },
-    { icon: <PageIcon />, name: "Tiket", path: "/superadmin/tickets" },
-    { icon: <GridIcon />, name: "Driver", path: "/driver/superadmin" },
-    { icon: <GridIcon />, name: "Toko", path: "/toko/superadmin" },
-    { icon: <TableIcon />, name: "Laporan Support", path: "/superadmin/reports" },
-    { icon: <TableIcon />, name: "Monitoring Transaksi", path: "/superadmin/transactions" },
-    { icon: <TableIcon />, name: "Harga Ongkir", path: "/superadmin/pricing" },
-    { icon: <TableIcon />, name: "Manajemen Pengguna", path: "/superadmin/users" },
-    { icon: <PageIcon />, name: "Tutorial & Support", path: "/superadmin/tutorial-support" },
+    { icon: <MailIcon />, name: "Announcements", path: "/superadmin/announcements" },
+    { icon: <DollarLineIcon />, name: "Tiket", path: "/superadmin/tickets" },
+    { icon: <UserIcon />, name: "Driver", path: "/driver/superadmin" },
+    { icon: <BoxIcon />, name: "Toko", path: "/toko/superadmin" },
+    { icon: <AlertIcon />, name: "Laporan Support", path: "/superadmin/reports" },
+    { icon: <PieChartIcon />, name: "Monitoring Transaksi", path: "/superadmin/transactions" },
+    { icon: <DollarLineIcon />, name: "Harga Ongkir", path: "/superadmin/pricing" },
+    { icon: <GroupIcon />, name: "Manajemen Pengguna", path: "/superadmin/users" },
+    { icon: <DocsIcon />, name: "Tutorial & Support", path: "/superadmin/tutorial-support" },
   ],
 };
 

@@ -1,9 +1,10 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
+import { BrowserRouter as Router, Routes, Route } from "react-router";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import RequireAuth from "./components/routing/RequireAuth";
 
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
+import LandingPage from "./pages/Landing";
 
 // Auth pages
 import SignIn from "./pages/AuthPages/SignIn";
@@ -63,25 +64,15 @@ import StoreTutorialSupportPage from "./pages/Store/TutorialSupport";
 // Dashboards (buat halaman placeholder kalau belum ada)
 import NotFound from "./pages/OtherPage/NotFound";
 
-// === Inline redirect component (Opsi A) ===
-function RedirectToRoleDashboard() {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/signin" replace />;
-  const path =
-    user.role === "CUSTOMER" ? "/dashboard/customer" :
-    user.role === "STORE" ? "/dashboard/store" :
-    user.role === "DRIVER" ? "/dashboard/driver" :
-    user.role === "SUPERADMIN" ? "/dashboard/superadmin" :
-    "/dashboard/admin";
-  return <Navigate to={path} replace />;
-}
-
 export default function App() {
   return (
     <AuthProvider>
       <Router>
         <ScrollToTop />
         <Routes>
+          {/* Public landing */}
+          <Route path="/" element={<LandingPage />} />
+
           {/* Public auth routes */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup-option" element={<SignUpOption />} />
@@ -92,9 +83,6 @@ export default function App() {
           {/* Protected app layout */}
           <Route element={<RequireAuth />}>
             <Route element={<AppLayout />}>
-              {/* Root langsung redirect ke dashboard sesuai role */}
-              <Route index element={<RedirectToRoleDashboard />} />
-
               {/* Admin */}
               <Route path="/dashboard/admin" element={<AdminDashboard />} />
               <Route path="/driver/admin" element={<AdminDriver />} />

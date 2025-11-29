@@ -246,7 +246,7 @@ export default function OrdersFoodPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="font-semibold text-gray-800 dark:text-white/90">Daftar menu yang ingin anda pesan</p>
-              <Button size="xs" variant="outline" onClick={addCustomItem}>Tambah menu</Button>
+              <Button size="sm" variant="outline" onClick={addCustomItem}>Tambah menu</Button>
             </div>
             <div className="space-y-3">
               {customStore.items.map((it, idx) => (
@@ -257,16 +257,16 @@ export default function OrdersFoodPage() {
                   </div>
                   <div>
                     <label className="text-sm text-gray-600 dark:text-gray-300">Jumlah</label>
-                    <Input type="number" min={1} value={it.qty} onChange={(e: any) => updateCustomItem(it.id, "qty", e.target.value)} />
+                    <Input type="number" min={"1"} value={it.qty} onChange={(e: any) => updateCustomItem(it.id, "qty", e.target.value)} />
                   </div>
                   <div>
                     <label className="text-sm text-gray-600 dark:text-gray-300">Harga satuan</label>
-                    <Input type="number" min={0} value={it.price} onChange={(e: any) => updateCustomItem(it.id, "price", e.target.value)} />
+                    <Input type="number" min={"0"} value={it.price} onChange={(e: any) => updateCustomItem(it.id, "price", e.target.value)} />
                   </div>
                   <div className="flex items-end">
                     <Button
                       variant="outline"
-                      size="xs"
+                      size="sm"
                       onClick={() => setCustomStore((p) => ({ ...p, items: p.items.filter((x) => x.id !== it.id) }))}
                       disabled={customStore.items.length === 1}
                     >

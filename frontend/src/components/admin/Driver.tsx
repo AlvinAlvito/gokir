@@ -17,6 +17,7 @@ type DriverCardItem = {
   idCardUrl?: string | null;
   studentCardUrl?: string | null;
   status: DriverStatus;
+  ratingAvg?: number | null;
   user?: {
     id: string;
     username?: string | null;
@@ -241,6 +242,9 @@ export default function DaftarDriver() {
                   >
                     {driver.status === "PENDING" ? "Menunggu Verifikasi" : driver.status === "APPROVED" ? "Aktif" : "Ditolak"}
                   </Badge>
+                </p>
+                <p className="text-sm text-gray-700 dark:text-white">
+                  Rating Driver: {driver.ratingAvg ? driver.ratingAvg.toFixed(1) : "-"}
                 </p>
                 <p>
                   <span className="font-medium text-gray-700 dark:text-white">

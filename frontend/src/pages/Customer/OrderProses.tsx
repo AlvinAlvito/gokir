@@ -193,7 +193,6 @@ export default function CustomerOrderProsesPage() {
   const [ratingSuccess, setRatingSuccess] = useState(false);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [estimate, setEstimate] = useState<{ distanceKm: number; fare: number; itemsTotal: number; total: number } | null>(null);
-  const [socket, setSocket] = useState<Socket | null>(null);
 
   const fetchOrder = async () => {
     const endpoint = id ? `/customer/orders/${id}` : "/customer/orders/active";
@@ -219,8 +218,7 @@ export default function CustomerOrderProsesPage() {
 
   useEffect(() => { fetchOrder(); }, [id]);
   useEffect(() => {
-    const s: Socket = io(API_URL, { withCredentials: true, transports: ["websocket"] });
-    setSocket(s);
+      const s: Socket = io(API_URL, { withCredentials: true, transports: ["websocket"] });
     s.on("orders:changed", fetchOrder);
     return () => {
       s.off("orders:changed", fetchOrder);
