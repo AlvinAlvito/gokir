@@ -294,9 +294,9 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
         pickupMap,
         dropoffMap,
         pickupLat: pickupCoords?.lat,
-        pickupLng: pickupCoords?.lng,
-        dropoffLat: dropoffCoords?.lat,
-        dropoffLng: dropoffCoords?.lng,
+    pickupLng: pickupCoords?.lng,
+    dropoffLat: dropoffCoords?.lat,
+    dropoffLng: dropoffCoords?.lng,
       },
       select: {
         id: true,
@@ -320,7 +320,6 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
         store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, mapsUrl: true } } } },
       },
     });
-    emitOrdersChanged();
     emitOrdersChanged();
     return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
   } else if (orderType === "FOOD_CUSTOM_STORE") {
@@ -379,6 +378,7 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
         dropoffLng: true,
       },
     });
+    emitOrdersChanged();
     return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
     // store/menuItem dibiarkan null
   } else if (orderType === "RIDE") {
