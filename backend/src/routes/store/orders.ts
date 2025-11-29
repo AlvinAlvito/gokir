@@ -189,9 +189,7 @@ router.patch("/:id/status", async (req: any, res) => {
     },
   });
 
-  if (parsed.data.status === "SEARCHING_DRIVER") {
-    emitOrdersChanged();
-  }
+  emitOrdersChanged();
   return res.json({ ok: true, data: { order: updated } });
 });
 

@@ -315,6 +315,7 @@ router.post("/:id/pickup", upload.single("proof"), async (req: any, res) => {
     },
   });
 
+  emitOrdersChanged();
   return res.json({ ok: true, data: { order: withParsedNote(updated), proofUrl: proofPath } });
 });
 
@@ -373,6 +374,7 @@ router.post("/:id/complete", upload.single("proof"), async (req: any, res) => {
     return updatedOrder;
   });
 
+  emitOrdersChanged();
   return res.json({ ok: true, data: { order: withParsedNote(updated), proofUrl: proofPath } });
 });
 

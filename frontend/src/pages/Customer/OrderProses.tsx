@@ -5,6 +5,7 @@ import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
 import { Modal } from "../../components/ui/modal";
 import RideRoutePreview from "../../components/ride/RideRoutePreview";
+import { io, Socket } from "socket.io-client";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -186,6 +187,7 @@ export default function CustomerOrderProsesPage() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [estimate, setEstimate] = useState<{ distanceKm: number; fare: number; itemsTotal: number; total: number } | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   const fetchOrder = async () => {
     const endpoint = id ? `/customer/orders/${id}` : "/customer/orders/active";
@@ -204,6 +206,15 @@ export default function CustomerOrderProsesPage() {
   };
 
   useEffect(() => { fetchOrder(); }, [id]);
+  useEffect(() => {
+    const s: Socket = io(API_URL, { withCredentials: true, transports: ["websocket"] });
+    setSocket(s);
+    s.on("orders:changed", fetchOrder);
+    return () => {
+      s.off("orders:changed", fetchOrder);
+      s.disconnect();
+    };
+  }, []);
 
   const { noteText, proofsPickup, proofsDelivery } = parseNote(order?.note);
   const rideMeta = order?.orderType === "RIDE" ? parseRideMeta(order?.note, { pickupMap: order?.pickupMap, dropoffMap: order?.dropoffMap }) : null;
