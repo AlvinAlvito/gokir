@@ -167,8 +167,13 @@ export default function RideRoutePreview({ pickupUrl, dropoffUrl, pickupCoord: p
   if (!p || !d) return null;
 
   return (
-    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-      <div id={mapId} style={{ height: 260, width: "100%" }} />
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden relative z-0">
+      <div id={mapId} style={{ height: 260, width: "100%", position: "relative", zIndex: 0 }} />
+      <style>
+        {`#${mapId} .leaflet-pane,
+#${mapId} .leaflet-top,
+#${mapId} .leaflet-bottom { z-index: 0 !important; }`}
+      </style>
       {directionsUrl && (
         <div className="flex items-center justify-between px-3 py-2 text-[11px] text-gray-500 dark:text-gray-400 bg-gray-50/70 dark:bg-black/20">
           <span>Buka rute di OpenStreetMap</span>
