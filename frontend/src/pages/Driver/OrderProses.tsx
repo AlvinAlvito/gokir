@@ -509,7 +509,10 @@ export default function DriverOrderProsesPage() {
             <input
               type="file"
               accept=".jpg,.jpeg,.png,.webp,.gif,image/*"
-              onChange={(e: any) => setProof(e.target.files?.[0] || null)}
+              onChange={(e: any) => {
+                setProof(e.target.files?.[0] || null);
+                setError(null);
+              }}
               className="text-sm text-gray-600 dark:text-gray-300"
             />
             {proof && <p className="text-xs text-gray-500">File: {proof.name}</p>}
@@ -521,7 +524,7 @@ export default function DriverOrderProsesPage() {
                 {uploading ? "Memproses..." : "Kirim bukti pickup"}
               </Button>
             )}
-            {order.status === "ON_DELIVERY" && (
+            {(order.status === "ON_DELIVERY" || order.status === "DRIVER_ASSIGNED") && (
               <Button size="sm" onClick={handleComplete} disabled={uploading}>
                 {uploading ? "Memproses..." : "Kirim bukti serah terima"}
               </Button>

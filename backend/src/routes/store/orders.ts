@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth";
+import { emitOrdersChanged } from "@/lib/socket";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
@@ -188,6 +189,9 @@ router.patch("/:id/status", async (req: any, res) => {
     },
   });
 
+  if (parsed.data.status === "SEARCHING_DRIVER") {
+    emitOrdersChanged();
+  }
   return res.json({ ok: true, data: { order: updated } });
 });
 

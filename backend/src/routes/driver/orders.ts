@@ -323,7 +323,7 @@ router.post("/:id/complete", upload.single("proof"), async (req: any, res) => {
   const driverId = req.user.id as string;
 
   const order = await prisma.customerOrder.findFirst({
-    where: { id: req.params.id, driverId, status: "ON_DELIVERY" },
+    where: { id: req.params.id, driverId, status: { in: ["ON_DELIVERY", "DRIVER_ASSIGNED"] } },
     select: {
       id: true,
       note: true,
