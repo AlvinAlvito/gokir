@@ -35,6 +35,7 @@ type Order = {
   paymentMethod?: string | null;
   quantity?: number | null;
   note?: string | null;
+  rating?: { driverRating?: number | null; storeRating?: number | null } | null;
   createdAt: string;
   customer?: { id: string; username?: string | null; email?: string | null; phone?: string | null } | null;
   driver?: { id: string; username?: string | null; email?: string | null; phone?: string | null; driverProfile?: { facePhotoUrl?: string | null } | null } | null;
@@ -185,6 +186,11 @@ export default function CustomerOrderProsesPage() {
   const [reportSuccess, setReportSuccess] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [ratingOpen, setRatingOpen] = useState(false);
+  const [driverRating, setDriverRating] = useState(0);
+  const [storeRating, setStoreRating] = useState(0);
+  const [ratingError, setRatingError] = useState<string | null>(null);
+  const [ratingSuccess, setRatingSuccess] = useState(false);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [estimate, setEstimate] = useState<{ distanceKm: number; fare: number; itemsTotal: number; total: number } | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -197,7 +203,12 @@ export default function CustomerOrderProsesPage() {
       const r = await fetch(`${API_URL}${endpoint}`, { credentials: "include" });
       const j = await r.json();
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal memuat order");
-      setOrder(j.data.order || null);
+      const o = j.data.order || null;
+      setOrder(o);
+      if (o?.rating) {
+        setDriverRating(o.rating.driverRating ?? 0);
+        setStoreRating(o.rating.storeRating ?? 0);
+      }
     } catch (e: any) {
       setOrder(null);
       setError(e.message || "Terjadi kesalahan");
@@ -362,6 +373,28 @@ export default function CustomerOrderProsesPage() {
     } catch (e: any) {
       setReportSending(false);
       setReportError(e.message || "Gagal mengirim laporan");
+    }
+  };
+
+  const submitRating = async () => {
+    if (!order?.id) return;
+    try {
+      setRatingError(null);
+      const payload: any = { driverRating };
+      if (order.orderType === "FOOD_EXISTING_STORE") payload.storeRating = storeRating;
+      const r = await fetch(`${API_URL}/customer/ratings/${order.id}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal mengirim rating");
+      setRatingSuccess(true);
+      setRatingOpen(false);
+      fetchOrder();
+    } catch (e: any) {
+      setRatingError(e.message || "Gagal mengirim rating");
     }
   };
 
@@ -544,13 +577,18 @@ export default function CustomerOrderProsesPage() {
             })}
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
-            {((order.orderType === "FOOD_CUSTOM_STORE" && order.status === "SEARCHING_DRIVER") ||
-              (order.orderType === "FOOD_EXISTING_STORE" && order.status === "WAITING_STORE_CONFIRM") ||
-              (order.orderType === "RIDE" && order.status === "SEARCHING_DRIVER")) && (
-              <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)} className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20">
-                Batalkan pesanan
+      <div className="flex items-center gap-3 flex-wrap">
+        <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
+        {order.status === "COMPLETED" && (
+          <Button size="sm" variant="outline" onClick={() => setRatingOpen(true)}>
+            Beri Rating
+          </Button>
+        )}
+        {((order.orderType === "FOOD_CUSTOM_STORE" && order.status === "SEARCHING_DRIVER") ||
+          (order.orderType === "FOOD_EXISTING_STORE" && order.status === "WAITING_STORE_CONFIRM") ||
+          (order.orderType === "RIDE" && order.status === "SEARCHING_DRIVER")) && (
+          <Button size="sm" variant="outline" onClick={() => setCancelOpen(true)} className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20">
+            Batalkan pesanan
               </Button>
             )}
           </div>
@@ -656,6 +694,59 @@ export default function CustomerOrderProsesPage() {
             <Button size="sm" onClick={cancelOrder} disabled={cancelLoading} className="bg-red-500 hover:bg-red-600 text-white">
               {cancelLoading ? "Memproses..." : "Batalkan"}
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={ratingOpen} onClose={() => setRatingOpen(false)} className="max-w-md m-4">
+        <div className="p-5 space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Beri Rating</h3>
+          <div className="space-y-2">
+            <p className="text-sm text-gray-700 dark:text-gray-300">Rating driver</p>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setDriverRating(v)}
+                  className={`text-2xl ${driverRating >= v ? "text-amber-500" : "text-gray-400"} hover:text-amber-500`}
+                  type="button"
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+          </div>
+          {order?.orderType === "FOOD_EXISTING_STORE" && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-700 dark:text-gray-300">Rating toko</p>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setStoreRating(v)}
+                    className={`text-2xl ${storeRating >= v ? "text-amber-500" : "text-gray-400"} hover:text-amber-500`}
+                    type="button"
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {ratingError && <p className="text-xs text-amber-600 dark:text-amber-400">{ratingError}</p>}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" size="sm" onClick={() => setRatingOpen(false)}>Batal</Button>
+            <Button size="sm" onClick={submitRating}>Kirim rating</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={ratingSuccess} onClose={() => setRatingSuccess(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-3 text-center">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Terima kasih!</h3>
+          <p className="text-sm text-gray-700 dark:text-gray-300">Rating kamu sudah kami terima.</p>
+          <div className="flex justify-center">
+            <Button size="sm" onClick={() => setRatingSuccess(false)}>Tutup</Button>
           </div>
         </div>
       </Modal>

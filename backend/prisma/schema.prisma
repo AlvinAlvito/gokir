@@ -48,6 +48,9 @@ model User {
   auditLogs          AuditLog[]
 
   reviewedDrivers DriverProfile[] @relation("ReviewedBy")
+  ratingsGiven   OrderRating[]    @relation("CustomerRating")
+  ratingsAsDriver OrderRating[]   @relation("DriverRating")
+  ratingsAsStore  OrderRating[]   @relation("StoreRating")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -335,10 +338,32 @@ model CustomerOrder {
   driver         User?     @relation("DriverOrders", fields: [driverId], references: [id])
   menuItem       MenuItem? @relation(fields: [menuItemId], references: [id])
   reports        TransactionReport[]
+  rating         OrderRating?
 
   @@index([customerId, createdAt])
   @@index([storeId])
   @@index([driverId])
+}
+
+model OrderRating {
+  id            String   @id @default(cuid())
+  orderId       String   @unique
+  customerId    String
+  driverId      String?
+  storeId       String?
+  driverRating  Int?
+  storeRating   Int?
+  comment       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  order    CustomerOrder @relation(fields: [orderId], references: [id])
+  customer User          @relation("CustomerRating", fields: [customerId], references: [id])
+  driver   User?         @relation("DriverRating", fields: [driverId], references: [id])
+  store    User?         @relation("StoreRating", fields: [storeId], references: [id])
+
+  @@index([driverId])
+  @@index([storeId])
 }
 
 model TicketBalance {

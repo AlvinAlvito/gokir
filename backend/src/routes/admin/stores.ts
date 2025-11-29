@@ -50,7 +50,20 @@ router.get("/", requireAuth, requireRole(["ADMIN","SUPERADMIN"]), async (req, re
         },
       },
     });
-    return res.json(ok(items));
+    const storeIds = items.map((s) => s.user?.id).filter(Boolean) as string[];
+    const ratingAgg = storeIds.length
+      ? await prisma.orderRating.groupBy({
+          by: ["storeId"],
+          where: { storeId: { in: storeIds }, storeRating: { not: null } },
+          _avg: { storeRating: true },
+        })
+      : [];
+    const ratingMap = Object.fromEntries(ratingAgg.map((r) => [r.storeId as string, r._avg.storeRating]));
+    const enriched = items.map((it) => ({
+      ...it,
+      ratingAvg: it.user?.id ? ratingMap[it.user.id] ?? null : null,
+    }));
+    return res.json(ok(enriched));
   } catch (e: any) {
     return res.status(500).json(fail(e.message || "Server error"));
   }

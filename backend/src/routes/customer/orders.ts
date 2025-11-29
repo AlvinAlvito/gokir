@@ -7,6 +7,7 @@ import path from "path";
 import fs from "fs";
 import fetch from "node-fetch";
 import { emitOrdersChanged } from "@/lib/socket";
+import { prisma } from "@/lib/prisma";
 
 const router = Router();
 router.use(requireRole(["CUSTOMER"]));
@@ -318,6 +319,7 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
         dropoffLng: true,
         menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
         store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, mapsUrl: true } } } },
+        rating: { select: { driverRating: true, storeRating: true } },
       },
     });
     emitOrdersChanged();
@@ -541,6 +543,7 @@ router.get("/", async (req: any, res) => {
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, mapsUrl: true } } } },
       driver: { select: { id: true, username: true, email: true, phone: true, driverProfile: { select: { facePhotoUrl: true } } } },
+      rating: { select: { driverRating: true, storeRating: true } },
     },
   });
   return res.json({ ok: true, data: { orders: orders.map(withParsedNote), page, perPage: take } });
@@ -576,6 +579,7 @@ router.get("/active", async (req: any, res) => {
       menuItem: { select: { id: true, name: true, price: true, promoPrice: true } },
       store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, photoUrl: true, address: true, mapsUrl: true } } } },
       driver: { select: { id: true, username: true, email: true, phone: true, driverProfile: { select: { facePhotoUrl: true } } } },
+      rating: { select: { driverRating: true, storeRating: true } },
     },
   });
 

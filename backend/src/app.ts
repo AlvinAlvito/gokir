@@ -27,6 +27,7 @@ import announcementsRoute from "@/routes/announcements";
 import customerProfileRoute from "@/routes/customer/profile";
 import customerStoresRoute from "@/routes/customer/stores";
 import customerOrdersRoute from "@/routes/customer/orders";
+import customerRatingsRoute from "@/routes/customer/ratings";
 import driverProfileRoute from "@/routes/driver/profile"; 
 import driverAvailabilityRoute from "@/routes/driver/availability";
 import driverTicketsRoute from "@/routes/driver/tickets";
@@ -124,6 +125,7 @@ app.use("/stats", statsRoute);
 app.use("/customer/profile", customerProfileRoute);
 app.use("/customer/stores", requireAuth, customerStoresRoute);
 app.use("/customer/orders", requireAuth, customerOrdersRoute);
+app.use("/customer/ratings", requireAuth, customerRatingsRoute);
 app.use("/utils", requireAuth, utilsRoute);
 
 // 404 JSON fallback

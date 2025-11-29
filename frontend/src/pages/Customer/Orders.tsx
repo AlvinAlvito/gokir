@@ -3,6 +3,7 @@ import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
 import { Modal } from "../../components/ui/modal";
+import { io, Socket } from "socket.io-client";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -32,14 +33,9 @@ type Order = {
   dropoffRegion?: string | null;
   pickupAddress?: string | null;
   dropoffAddress?: string | null;
+  rating?: { driverRating?: number | null; storeRating?: number | null } | null;
   menuItem?: { id: string; name: string; price: number; promoPrice?: number | null } | null;
   store?: { id: string; storeProfile?: { id: string; storeName?: string | null } | null } | null;
-};
-
-const toAbs = (rel?: string | null) => {
-  if (!rel) return "/images/user/owner.jpg";
-  if (/^https?:\/\//i.test(rel)) return rel;
-  return `${API_URL}${rel.startsWith("/") ? "" : "/"}${rel}`;
 };
 
 const toProof = (path?: string | null) => {
@@ -159,6 +155,15 @@ export default function CustomerOrdersPage() {
   };
 
   useEffect(() => { fetchOrders(page); }, []); // initial load
+  useEffect(() => {
+    const s: Socket = io(API_URL, { withCredentials: true, transports: ["websocket"] });
+    const reload = () => fetchOrders(page);
+    s.on("orders:changed", reload);
+    return () => {
+      s.off("orders:changed", reload);
+      s.disconnect();
+    };
+  }, [page]);
 
   return (
     <>
@@ -170,7 +175,7 @@ export default function CustomerOrdersPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400">Order terbaru ada di paling atas.</p>
           </div>
           <button
-            onClick={fetchOrders}
+            onClick={() => fetchOrders(page)}
             className="text-sm rounded-lg border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-white/[0.04]"
           >
             Refresh
@@ -222,6 +227,11 @@ const OrderCard = ({ order }: OrderCardProps) => {
   const [reportSending, setReportSending] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [ratingOpen, setRatingOpen] = useState(false);
+  const [driverRating, setDriverRating] = useState(order.rating?.driverRating ?? 0);
+  const [storeRating, setStoreRating] = useState(order.rating?.storeRating ?? 0);
+  const [ratingError, setRatingError] = useState<string | null>(null);
+  const [ratingSuccess, setRatingSuccess] = useState(false);
 
   const submitReport = async () => {
     if (!order?.id) return;
@@ -251,6 +261,26 @@ const OrderCard = ({ order }: OrderCardProps) => {
     } catch (e: any) {
       setReportSending(false);
       setReportError(e.message || "Gagal mengirim laporan");
+    }
+  };
+
+  const submitRating = async () => {
+    try {
+      setRatingError(null);
+      const payload: any = { driverRating };
+      if (order.orderType === "FOOD_EXISTING_STORE") payload.storeRating = storeRating;
+      const r = await fetch(`${API_URL}/customer/ratings/${order.id}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal mengirim rating");
+      setRatingSuccess(true);
+      setRatingOpen(false);
+    } catch (e: any) {
+      setRatingError(e.message || "Gagal mengirim rating");
     }
   };
 
@@ -365,8 +395,16 @@ const OrderCard = ({ order }: OrderCardProps) => {
         </div>
       )}
 
-      <div className="mt-3">
-        <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
+      <div className="mt-3 flex gap-2">
+        {order.status === "COMPLETED" && (
+          <Button size="sm" variant="outline" onClick={() => setRatingOpen(true)}>Beri Rating</Button>
+        )}
+        <div className="flex gap-2">
+          {order.status === "COMPLETED" && (
+            <Button size="sm" variant="outline" onClick={() => setRatingOpen(true)}>Beri Rating</Button>
+          )}
+          <Button size="sm" variant="outline" onClick={() => setReportOpen(true)}>Laporkan Transaksi</Button>
+        </div>
       </div>
 
       <Modal isOpen={reportOpen} onClose={() => setReportOpen(false)} className="max-w-lg m-4">
@@ -425,6 +463,112 @@ const OrderCard = ({ order }: OrderCardProps) => {
             >
               Hubungi customer service
             </a>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={ratingOpen} onClose={() => setRatingOpen(false)} className="max-w-md m-4">
+        <div className="p-5 space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Beri Rating</h3>
+          <div className="space-y-2">
+            <p className="text-sm text-gray-700 dark:text-gray-300">Rating driver</p>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setDriverRating(v)}
+                  className={`text-2xl ${driverRating >= v ? "text-amber-500" : "text-gray-400"} hover:text-amber-500`}
+                  type="button"
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+          </div>
+          {order.orderType === "FOOD_EXISTING_STORE" && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-700 dark:text-gray-300">Rating toko</p>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setStoreRating(v)}
+                    className={`text-2xl ${storeRating >= v ? "text-amber-500" : "text-gray-400"} hover:text-amber-500`}
+                    type="button"
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {ratingError && <p className="text-xs text-amber-600 dark:text-amber-400">{ratingError}</p>}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" size="sm" onClick={() => setRatingOpen(false)}>Batal</Button>
+            <Button size="sm" onClick={submitRating}>Kirim rating</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={ratingSuccess} onClose={() => setRatingSuccess(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-3 text-center">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Terima kasih!</h3>
+          <p className="text-sm text-gray-700 dark:text-gray-300">Rating kamu sudah kami terima.</p>
+          <div className="flex justify-center">
+            <Button size="sm" onClick={() => setRatingSuccess(false)}>Tutup</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={ratingOpen} onClose={() => setRatingOpen(false)} className="max-w-md m-4">
+        <div className="p-5 space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Beri Rating</h3>
+          <div className="space-y-2">
+            <p className="text-sm text-gray-700 dark:text-gray-300">Rating driver</p>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setDriverRating(v)}
+                  className={`text-2xl ${driverRating >= v ? "text-amber-500" : "text-gray-400"} hover:text-amber-500`}
+                  type="button"
+                >
+                  ★
+                </button>
+              ))}
+            </div>
+          </div>
+          {order.orderType === "FOOD_EXISTING_STORE" && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-700 dark:text-gray-300">Rating toko</p>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setStoreRating(v)}
+                    className={`text-2xl ${storeRating >= v ? "text-amber-500" : "text-gray-400"} hover:text-amber-500`}
+                    type="button"
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {ratingError && <p className="text-xs text-amber-600 dark:text-amber-400">{ratingError}</p>}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" size="sm" onClick={() => setRatingOpen(false)}>Batal</Button>
+            <Button size="sm" onClick={submitRating}>Kirim rating</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={ratingSuccess} onClose={() => setRatingSuccess(false)} className="max-w-sm m-4">
+        <div className="p-5 space-y-3 text-center">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Terima kasih!</h3>
+          <p className="text-sm text-gray-700 dark:text-gray-300">Rating kamu sudah kami terima.</p>
+          <div className="flex justify-center">
+            <Button size="sm" onClick={() => setRatingSuccess(false)}>Tutup</Button>
           </div>
         </div>
       </Modal>

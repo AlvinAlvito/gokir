@@ -52,7 +52,22 @@ router.get("/", requireAuth, requireRole(["ADMIN","SUPERADMIN"]), async (req, re
       },
     });
 
-    return res.json(ok(items));
+    const driverIds = items.map((i) => i.user?.id).filter(Boolean) as string[];
+    const ratingAgg = driverIds.length
+      ? await prisma.orderRating.groupBy({
+          by: ["driverId"],
+          where: { driverId: { in: driverIds }, driverRating: { not: null } },
+          _avg: { driverRating: true },
+        })
+      : [];
+    const ratingMap = Object.fromEntries(ratingAgg.map((r) => [r.driverId as string, r._avg.driverRating]));
+
+    const enriched = items.map((it) => ({
+      ...it,
+      ratingAvg: it.user?.id ? ratingMap[it.user.id] ?? null : null,
+    }));
+
+    return res.json(ok(enriched));
   } catch (e: any) {
     return res.status(500).json(fail(e.message || "Server error"));
   }
