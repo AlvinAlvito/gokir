@@ -6,6 +6,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import fetch from "node-fetch";
+import { emitOrdersChanged } from "@/lib/socket";
 
 const router = Router();
 router.use(requireRole(["CUSTOMER"]));
@@ -319,6 +320,8 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
         store: { select: { id: true, storeProfile: { select: { id: true, storeName: true, mapsUrl: true } } } },
       },
     });
+    emitOrdersChanged();
+    emitOrdersChanged();
     return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
   } else if (orderType === "FOOD_CUSTOM_STORE") {
     if (!customStoreName || !customStoreAddress || !quantity) {
@@ -432,6 +435,7 @@ router.post("/", orderUpload.single("pickupPhoto"), async (req: any, res) => {
         dropoffRegion: true,
       },
     });
+    emitOrdersChanged();
     return res.status(201).json({ ok: true, data: { order: withParsedNote(order) } });
   }
 
@@ -500,6 +504,7 @@ router.patch("/:id/cancel", async (req: any, res) => {
     data: { status: "CANCELLED" },
     select: { id: true, status: true },
   });
+  emitOrdersChanged();
   return res.json({ ok: true, data: { order: updated } });
 });
 

@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/auth";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { emitOrdersChanged } from "@/lib/socket";
 
 const router = Router();
 router.use(requireRole(["DRIVER"]));
@@ -588,6 +589,7 @@ router.patch("/:id/cancel", async (req: any, res) => {
     data: { status: "CANCELLED", note: newNote },
     select: { id: true, status: true, note: true },
   });
+  emitOrdersChanged();
   return res.json({ ok: true, data: { order: updated } });
 });
 
@@ -643,6 +645,7 @@ router.post("/:id/claim", async (req: any, res) => {
     },
   });
 
+  emitOrdersChanged();
   return res.json({ ok: true, data: { order: updated } });
 });
 

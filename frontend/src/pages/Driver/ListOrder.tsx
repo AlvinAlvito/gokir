@@ -4,6 +4,7 @@ import PageMeta from "../../components/common/PageMeta";
 import Badge from "../../components/ui/badge/Badge";
 import Button from "../../components/ui/button/Button";
 import { Modal } from "../../components/ui/modal";
+import { io, Socket } from "socket.io-client";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -56,7 +57,7 @@ const statusLabel: Record<Status, string> = {
   CANCELLED: "Dibatalkan",
 };
 
-const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "success" | "gray"> = {
+const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "success"> = {
   WAITING_STORE_CONFIRM: "warning",
   REJECTED: "error",
   CONFIRMED_COOKING: "primary",
@@ -64,7 +65,7 @@ const statusBadge: Record<Status, "warning" | "error" | "primary" | "info" | "su
   DRIVER_ASSIGNED: "success",
   ON_DELIVERY: "info",
   COMPLETED: "success",
-  CANCELLED: "gray",
+  CANCELLED: "error",
 };
 
 const typeLabel: Record<OrderType, string> = {
@@ -146,6 +147,14 @@ export default function DriverListOrderPage() {
   };
 
   useEffect(() => { fetchOrders(); }, []);
+  useEffect(() => {
+    const s: Socket = io(API_URL, { withCredentials: true, transports: ["websocket"] });
+    s.on("orders:changed", fetchOrders);
+    return () => {
+      s.off("orders:changed", fetchOrders);
+      s.disconnect();
+    };
+  }, []);
 
   const claim = async (id: string) => {
     if (hasActive) {
@@ -270,8 +279,12 @@ export default function DriverListOrderPage() {
                 <p className="font-semibold">Catatan</p>
                 {noteMeta?.noteText && <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteMeta.noteText}</p>}
                 {noteMeta?.mapUrl && (
-                  <Button asChild size="xs" variant="outline">
-                    <a href={noteMeta.mapUrl} target="_blank" rel="noreferrer">Lihat Maps</a>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(noteMeta.mapUrl!, "_blank", "noopener,noreferrer")}
+                  >
+                    Lihat Maps
                   </Button>
                 )}
               </div>
