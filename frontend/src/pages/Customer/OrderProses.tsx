@@ -199,6 +199,7 @@ export default function CustomerOrderProsesPage() {
       if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal memuat order");
       setOrder(j.data.order || null);
     } catch (e: any) {
+      setOrder(null);
       setError(e.message || "Terjadi kesalahan");
     } finally {
       setLoading(false);

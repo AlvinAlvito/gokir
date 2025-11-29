@@ -524,7 +524,7 @@ export default function DriverOrderProsesPage() {
                 {uploading ? "Memproses..." : "Kirim bukti pickup"}
               </Button>
             )}
-            {(order.status === "ON_DELIVERY" || order.status === "DRIVER_ASSIGNED") && (
+            {order.status === "ON_DELIVERY" && (
               <Button size="sm" onClick={handleComplete} disabled={uploading}>
                 {uploading ? "Memproses..." : "Kirim bukti serah terima"}
               </Button>
