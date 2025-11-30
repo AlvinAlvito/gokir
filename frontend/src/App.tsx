@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import RequireAuth from "./components/routing/RequireAuth";
 
 import AppLayout from "./layout/AppLayout";
@@ -152,3 +152,4 @@ export default function App() {
     </AuthProvider>
   );
 }
+

@@ -105,7 +105,7 @@ export default function DriverTickets() {
           <form className="mt-2 flex flex-col md:flex-row md:items-end gap-3" onSubmit={handleOrder}>
             <div className="flex-1 space-y-1">
               <Label>Jumlah tiket (min {MIN_QTY})</Label>
-              <Input type="number" value={qty} min={MIN_QTY} onChange={(e: any) => setQty(Number(e.target.value))} />
+              <Input type="number" value={qty} min={`${MIN_QTY}`} onChange={(e: any) => setQty(Number(e.target.value))} />
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 Total: Rp{(qty || 0) * PRICE}
               </p>

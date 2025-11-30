@@ -259,7 +259,7 @@ export default function AdminTickets() {
               <label className="text-xs text-gray-500 dark:text-gray-400">Jumlah tiket</label>
               <Input
                 type="number"
-                min={1}
+                min="1"
                 value={amount}
                 onChange={(e: any) => setAmount(Number(e.target.value))}
               />

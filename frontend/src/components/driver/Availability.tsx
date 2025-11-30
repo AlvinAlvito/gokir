@@ -25,17 +25,12 @@ type Availability = {
   updatedAt?: string;
 };
 
-const statusOptions = [
-  { label: "Aktif", value: "ACTIVE" },
-  { label: "Tidak Aktif", value: "INACTIVE" },
-] as const;
-
-const regionOptions = [
+const regionOptions: { label: string; value: Region }[] = [
   { label: "Kampus UINSU Sutomo", value: "KAMPUS_SUTOMO" },
   { label: "Kampus UINSU Tuntungan", value: "KAMPUS_TUNTUNGAN" },
   { label: "Kampus UINSU Pancing", value: "KAMPUS_PANCING" },
   { label: "Wilayah Lainnya", value: "WILAYAH_LAINNYA" },
-] as const;
+];
 
 export default function DriverAvailability() {
   const { isOpen, openModal, closeModal } = useModal();
