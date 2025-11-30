@@ -120,7 +120,7 @@ const parseNoteMeta = (note?: string | null) => {
   };
 };
 
-export default function DriverListOrderPage() {
+export function DriverListOrderContent() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -190,6 +190,12 @@ export default function DriverListOrderPage() {
     const fare = o.estimatedFare ?? rideNote?.fare ?? noteMeta?.fare ?? null;
     const distance = o.distanceKm ?? null;
     const region = o.store?.storeAvailability?.region || o.pickupRegion || o.customRegion || o.dropoffRegion;
+    const storeMap =
+      o.orderType === "FOOD_CUSTOM_STORE"
+        ? o.customStoreAddress || noteMeta?.mapUrl || null
+        : o.store?.storeProfile?.address
+        ? noteMeta?.mapUrl || null
+        : noteMeta?.mapUrl || null;
     return (
       <div key={o.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-xs dark:border-gray-800 dark:bg-white/[0.03] flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
@@ -213,6 +219,18 @@ export default function DriverListOrderPage() {
               <p className="font-semibold text-gray-800 dark:text-white/90">{o.store.storeProfile?.storeName || "Toko"}</p>
               <p className="text-xs text-gray-500">{o.store.storeProfile?.address || "Alamat tidak tersedia"}</p>
             </div>
+          </div>
+        )}
+        {o.orderType === "FOOD_CUSTOM_STORE" && (
+          <div className="space-y-1 text-sm text-gray-700 dark:text-white/90">
+            <p className="font-semibold">Toko luar</p>
+            <p>{o.customStoreName || "Toko luar"}</p>
+          </div>
+        )}
+        {o.orderType === "FOOD_CUSTOM_STORE" && (
+          <div className="space-y-1 text-sm text-gray-700 dark:text-white/90">
+            <p className="font-semibold">Nama Toko</p>
+            <p>{o.customStoreName || "Toko luar"}</p>
           </div>
         )}
 
@@ -278,15 +296,15 @@ export default function DriverListOrderPage() {
               <div className="space-y-1">
                 <p className="font-semibold">Catatan</p>
                 {noteMeta?.noteText && <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{noteMeta.noteText}</p>}
-                {noteMeta?.mapUrl && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => window.open(noteMeta.mapUrl!, "_blank", "noopener,noreferrer")}
-                  >
-                    Lihat Maps
-                  </Button>
-                )}
+          {storeMap && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.open(storeMap, "_blank", "noopener,noreferrer")}
+            >
+              Lihat Maps Toko
+            </Button>
+          )}
               </div>
             )
           )}
@@ -307,7 +325,6 @@ export default function DriverListOrderPage() {
 
   return (
     <>
-      <PageMeta title="List Order" description="Order yang mencari driver" />
       <div className="space-y-4">
         <div>
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90">Orderan Mencari Driver</h2>
@@ -358,6 +375,15 @@ export default function DriverListOrderPage() {
           </div>
         </div>
       </Modal>
+    </>
+  );
+}
+
+export default function DriverListOrderPage() {
+  return (
+    <>
+      <PageMeta title="List Order" description="Order yang mencari driver" />
+      <DriverListOrderContent />
     </>
   );
 }

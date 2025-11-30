@@ -230,11 +230,30 @@ export default function CustomerOrderProsesPage() {
   const rideMeta = order?.orderType === "RIDE" ? parseRideMeta(order?.note, { pickupMap: order?.pickupMap, dropoffMap: order?.dropoffMap }) : null;
   const steps = order?.orderType === "RIDE" ? stepItemsRide : stepItemsFood;
   const currentStepIndex = useMemo(() => order ? steps.findIndex((s) => s.key === order.status) : -1, [order, steps]);
+  const customItems = useMemo(() => {
+    if (order?.orderType !== "FOOD_CUSTOM_STORE" || !noteText) return [];
+    return noteText
+      .split("\n")
+      .map((ln) => ln.trim())
+      .filter((ln) => ln.startsWith("-"))
+      .map((ln) => {
+        const m = ln.match(/-\s*(.+?)\s+x\s+(\d+)\s+@\s+([0-9]+)/i);
+        if (!m) return null;
+        const [, name, qtyStr, priceStr] = m;
+        return { name: name.trim(), qty: Number(qtyStr), price: Number(priceStr) };
+      })
+      .filter(Boolean) as { name: string; qty: number; price: number }[];
+  }, [order?.orderType, noteText]);
+
   const itemsTotal = useMemo(() => {
-    if (!order?.menuItem) return 0;
+    if (!order) return 0;
+    if (order.orderType === "FOOD_CUSTOM_STORE") {
+      return customItems.reduce((sum, it) => sum + it.qty * it.price, 0);
+    }
+    if (!order.menuItem) return 0;
     const price = order.menuItem.promoPrice ?? order.menuItem.price ?? 0;
     return price * (order.quantity ?? 1);
-  }, [order]);
+  }, [order, customItems]);
 
   const stepDescOverride: Partial<Record<Status, string>> = {
     CONFIRMED_COOKING: "Pesanan kamu sedang dibuat oleh toko yaa",
@@ -341,7 +360,7 @@ export default function CustomerOrderProsesPage() {
       });
     };
     computeEstimate();
-  }, [order, pricing, itemsTotal]);
+  }, [order, pricing, itemsTotal, customItems]);
 
   const submitReport = async () => {
     if (!order?.id) return;
@@ -487,25 +506,61 @@ export default function CustomerOrderProsesPage() {
                           <p className="text-xs text-gray-500">{order.store.storeProfile?.address || "Alamat tidak tersedia"}</p>
                         </div>
                       )}
-                      {order.menuItem && (
+                      {order.orderType === "FOOD_CUSTOM_STORE" ? (
                         <div className="space-y-1">
                           <p className="text-sm font-semibold">Detail Menu</p>
-                          <p>{order.menuItem.name} x {order.quantity ?? 1}</p>
-                          <p className="text-xs text-gray-500">Perkiraan: {currency((order.menuItem.promoPrice ?? order.menuItem.price ?? 0) * (order.quantity ?? 1))}</p>
-                          <p className="text-xs text-gray-500">Catatan: {noteText || "-"}</p>
+                          {customItems.length > 0 ? (
+                            <ul className="text-sm text-gray-800 dark:text-white/90 list-disc list-inside space-y-0.5">
+                              {customItems.map((it, idx) => (
+                                <li key={idx}>
+                                  {it.name} x {it.qty}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-gray-800 dark:text-white/90 whitespace-pre-line">
+                              {noteText?.includes("Menu:") ? noteText.replace(/^.*Menu:/s, "Menu:") : "-"}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500">Catatan: {noteText ? noteText.split("Menu:")[0]?.trim() || "-" : "-"}</p>
                         </div>
+                      ) : (
+                        order.menuItem && (
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold">Detail Menu</p>
+                            <p>{order.menuItem.name} x {order.quantity ?? 1}</p>
+                            <p className="text-xs text-gray-500">Perkiraan: {currency((order.menuItem.promoPrice ?? order.menuItem.price ?? 0) * (order.quantity ?? 1))}</p>
+                            <p className="text-xs text-gray-500">Catatan: {noteText || "-"}</p>
+                          </div>
+                        )
                       )}
                       {estimate && (
                         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-white/5 p-3 space-y-1">
                           <p className="text-sm font-semibold text-gray-800 dark:text-white/90">Rincian biaya</p>
                           <p className="text-xs text-gray-500">Perkiraan jarak: {estimate.distanceKm} km</p>
                           <p className="text-sm text-gray-800 dark:text-white/90">Ongkir: {currency(estimate.fare)}</p>
-                          {order.menuItem && (
-                            <p className="text-sm text-gray-800 dark:text-white/90">
-                              {order.menuItem.name} x {order.quantity ?? 1} @ {currency(order.menuItem.promoPrice ?? order.menuItem.price ?? 0)}
-                            </p>
+                          {order.orderType === "FOOD_CUSTOM_STORE" ? (
+                            customItems.length > 0 ? (
+                              <ul className="text-sm text-gray-800 dark:text-white/90 list-disc list-inside space-y-0.5">
+                                {customItems.map((it, idx) => (
+                                  <li key={idx}>
+                                    {it.name} x {it.qty} @ {currency(it.price)}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-sm text-gray-800 dark:text-white/90 whitespace-pre-line">
+                                {noteText?.includes("Menu:") ? noteText.replace(/^.*Menu:/s, "Menu:") : "-"}
+                              </p>
+                            )
+                          ) : (
+                            order.menuItem && (
+                              <p className="text-sm text-gray-800 dark:text-white/90">
+                                {order.menuItem.name} x {order.quantity ?? 1}
+                              </p>
+                            )
                           )}
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white">Total: {currency(estimate.total)}</p>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">Total: {currency(estimate.fare + itemsTotal)}</p>
                         </div>
                       )}
                     </div>

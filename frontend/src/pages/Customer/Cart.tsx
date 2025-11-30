@@ -275,27 +275,31 @@ export default function CustomerCartPage() {
     try {
       setModal((p) => ({ ...p, submitting: true }));
       setError(null);
-      for (const item of entry.items) {
-        if (orderType === "FOOD_CUSTOM_STORE") {
-          const noteCombined = [modal.note, `Menu: ${item.name} x ${item.qty} @ ${item.price}`, hasMaps].filter(Boolean).join("\n");
-          const r = await fetch(`${API_URL}/customer/orders`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderType: "FOOD_CUSTOM_STORE",
-              customStoreName: entry.customStoreName || entry.storeName,
-              customStoreAddress: entry.customStoreAddress || modal.address || modal.maps || "",
-              customRegion: entry.customRegion || "WILAYAH_LAINNYA",
-              quantity: item.qty,
-              note: noteCombined || undefined,
-              paymentMethod: modal.payment,
-              dropoffAddress: modal.address || undefined,
-            }),
-          });
-          const j = await r.json();
-          if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal membuat order");
-        } else {
+
+      if (orderType === "FOOD_CUSTOM_STORE") {
+        const itemsDesc = entry.items.map((it) => `- ${it.name} x ${it.qty} @ ${it.price}`).join("\n");
+        const qtyTotal = entry.items.reduce((sum, it) => sum + it.qty, 0);
+        const noteCombined = [modal.note, itemsDesc ? `Menu:\n${itemsDesc}` : null, hasMaps].filter(Boolean).join("\n");
+
+        const r = await fetch(`${API_URL}/customer/orders`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderType: "FOOD_CUSTOM_STORE",
+            customStoreName: entry.customStoreName || entry.storeName,
+            customStoreAddress: entry.customStoreAddress || modal.address || modal.maps || "",
+            customRegion: entry.customRegion || "WILAYAH_LAINNYA",
+            quantity: qtyTotal,
+            note: noteCombined || undefined,
+            paymentMethod: modal.payment,
+            dropoffAddress: modal.address || undefined,
+          }),
+        });
+        const j = await r.json();
+        if (!r.ok || !j?.ok) throw new Error(j?.error?.message || "Gagal membuat order");
+      } else {
+        for (const item of entry.items) {
           const noteCombined = hasMaps ? [modal.note, hasMaps].filter(Boolean).join("\n") : modal.note;
           const r = await fetch(`${API_URL}/customer/orders`, {
             method: "POST",

@@ -4,6 +4,8 @@ import MonthlyTarget from "../../components/ecommerce/MonthlyTarget";
 import PageMeta from "../../components/common/PageMeta";
 import Slider from "../../components/driver/Slider";
 import DriverAvailability from "../../components/driver/Availability";
+import DriverTickets from "../../components/driver/Tickets";
+import { DriverListOrderContent } from "./ListOrder";
 
 export default function Dashboard() {
   return (
@@ -27,6 +29,17 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
           <div className="lg:col-span-5 space-y-4">
             <MonthlyTarget />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-start">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Tiket & Saldo</h3>
+            <DriverTickets />
+          </div>
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Orderan Mencari Driver</h3>
+            <DriverListOrderContent />
           </div>
         </div>
       </div>
