@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { EyeCloseIcon, EyeIcon } from "../../icons";
 import Label from "../form/Label";
@@ -25,6 +25,7 @@ export default function SignUpFormDriver() {
 
   const [idCard, setIdCard] = useState<File | null>(null);
   const [studentCard, setStudentCard] = useState<File | null>(null);
+  const [simCard, setSimCard] = useState<File | null>(null);
   const [facePhoto, setFacePhoto] = useState<File | null>(null);
 
   const navigate = useNavigate();
@@ -38,11 +39,11 @@ export default function SignUpFormDriver() {
     }
     if (password.length < 6) return setMsg("Password minimal 6 karakter.");
     if (password !== confirm) return setMsg("Konfirmasi password tidak cocok.");
-    if (!idCard || !studentCard || !facePhoto) {
-      return setMsg("Unggah KTP, KTM, dan Foto Wajah.");
+    if (!idCard || !studentCard || !simCard || !facePhoto) {
+      return setMsg("Unggah KTP, KTM, SIM, dan Foto Wajah.");
     }
-    if ([idCard, studentCard, facePhoto].some((f) => f && f.size > MAX_FILE_BYTES)) {
-      return setMsg("Ukuran file maksimal 5MB per berkas (KTP/KTM/Foto).");
+    if ([idCard, studentCard, simCard, facePhoto].some((f) => f && f.size > MAX_FILE_BYTES)) {
+      return setMsg("Ukuran file maksimal 5MB per berkas (KTP/KTM/SIM/Foto).");
     }
 
     try {
@@ -56,17 +57,16 @@ export default function SignUpFormDriver() {
       fd.append("nim", nim.trim());
       fd.append("birthPlace", birthPlace.trim());
       fd.append("birthDate", birthDate);
-      fd.append("whatsapp", whatsapp.trim()); // 👈 ditambahkan
+      fd.append("whatsapp", whatsapp.trim());
       fd.append("idCard", idCard);
       fd.append("studentCard", studentCard);
+      fd.append("simCard", simCard);
       fd.append("facePhoto", facePhoto);
-
 
       const r = await fetch(`${API_URL}/auth/driver/register`, {
         method: "POST",
         credentials: "include",
-        body: fd
-        // NOTE: JANGAN set "Content-Type": browser akan set boundary otomatis
+        body: fd,
       });
       const json = await r.json();
       if (!r.ok || !json.ok) throw new Error(json?.error?.message || "Register gagal");
@@ -187,6 +187,23 @@ export default function SignUpFormDriver() {
                         return;
                       }
                       setStudentCard(f);
+                    }}
+                    className="block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-white/5 dark:file:text-white/90 dark:hover:file:bg-white/10"
+                  />
+                </div>
+                <div>
+                  <Label>Foto SIM (jelas)*</Label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      if (f && f.size > MAX_FILE_BYTES) {
+                        setMsg("Ukuran file SIM maksimal 5MB.");
+                        setSimCard(null);
+                        return;
+                      }
+                      setSimCard(f);
                     }}
                     className="block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-white/5 dark:file:text-white/90 dark:hover:file:bg-white/10"
                   />

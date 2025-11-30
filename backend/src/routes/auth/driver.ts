@@ -1,125 +1,134 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { issueSession, verifyPassword, hashPassword, logAudit } from "@/lib/auth";
+import { hashPassword, issueSession, logAudit, verifyPassword } from "@/lib/auth";
 import { ok, fail } from "@/utils/http";
 import { upload } from "@/middleware/upload";
 
 const router = Router();
 
-router.post("/register",
-  upload.fields([
-    { name: "idCard", maxCount: 1 },
-    { name: "studentCard", maxCount: 1 },
-    { name: "facePhoto", maxCount: 1 }
-  ]),
-  async (req, res) => {
-    try {
-      // ambil body fields
-      const schema = z.object({
-        email: z.string().email(),
-        password: z.string().min(6),
-        name: z.string().min(1),
-        nim: z.string().min(3),
-        birthPlace: z.string().min(1),
-        birthDate: z.string().min(8),
-        whatsapp: z.string().optional()
-      });
+const publicBaseUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 4000}`;
+const toUrl = (file: Express.Multer.File) => `/uploads/${file.filename}`;
 
+// Helper untuk handle upload multipart
+const handleDriverUpload = upload.fields([
+  { name: "idCard", maxCount: 1 },
+  { name: "studentCard", maxCount: 1 },
+  { name: "simCard", maxCount: 1 },
+  { name: "facePhoto", maxCount: 1 },
+]);
 
-      const parsed = schema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json(fail("Invalid payload"));
-      const d = parsed.data;
+// REGISTER DRIVER (email + password + dokumen)
+router.post("/register", (req, res) => {
+  handleDriverUpload(req as any, res as any, async (err: any) => {
+    if (err) return res.status(400).json(fail(err.message || "Upload gagal"));
 
-      // ambil file paths
-      const files = req.files as {
-        [field: string]: Express.Multer.File[];
-      } | undefined;
+    const schema = z.object({
+      email: z.string().email(),
+      password: z.string().min(6),
+      name: z.string().min(1),
+      nim: z.string().min(1),
+      birthPlace: z.string().min(1),
+      birthDate: z.string().min(1),
+      whatsapp: z.string().min(6).max(20).optional(),
+    });
 
-      const idCardFile = files?.idCard?.[0];
-      const studentCardFile = files?.studentCard?.[0];
-      const facePhotoFile = files?.facePhoto?.[0];
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(fail("Payload tidak valid"));
 
-      if (!idCardFile || !studentCardFile || !facePhotoFile) {
-        return res.status(400).json(fail("Dokumen wajib: idCard, studentCard, facePhoto"));
-      }
+    const files = req.files as Record<string, Express.Multer.File[]>;
+    const needed = ["idCard", "studentCard", "simCard", "facePhoto"] as const;
+    const missing = needed.filter((k) => !files?.[k]?.[0]);
+    if (missing.length) return res.status(400).json(fail(`File wajib: ${missing.join(", ")}`));
 
-      const baseURL = process.env.APP_URL || `http://localhost:${process.env.PORT || 4000}`;
-      const idCardUrl = `${baseURL}/uploads/${idCardFile.filename}`;
-      const studentCardUrl = `${baseURL}/uploads/${studentCardFile.filename}`;
-      const facePhotoUrl = `${baseURL}/uploads/${facePhotoFile.filename}`;
+    const { email, password, name, nim, birthPlace, birthDate, whatsapp } = parsed.data;
 
-      const exists = await prisma.user.findUnique({ where: { email: d.email } });
-      if (exists) return res.status(409).json(fail("Email already registered"));
+    const exists = await prisma.user.findUnique({ where: { email } });
+    if (exists) return res.status(409).json(fail("Email sudah terdaftar"));
 
-      const passwordHash = await hashPassword(d.password);
-      const user = await prisma.user.create({
-        data: {
-          email: d.email,
-          passwordHash,
-          role: "DRIVER",
-          isEmailVerified: false,
-          driverProfile: {
-            create: {
-              name: d.name,
-              nim: d.nim,
-              birthPlace: d.birthPlace,
-              birthDate: new Date(d.birthDate),
-              idCardUrl,
-              studentCardUrl,
-              facePhotoUrl,
-              whatsapp: d.whatsapp || null, // 👈 disimpan
-              status: "PENDING"
-            }
-          }
+    const birth = new Date(birthDate);
+    if (Number.isNaN(birth.getTime())) return res.status(400).json(fail("Tanggal lahir tidak valid"));
 
+    const passwordHash = await hashPassword(password);
+    const user = await prisma.user.create({
+      data: {
+        email,
+        username: name,
+        phone: whatsapp ?? null,
+        passwordHash,
+        role: "DRIVER",
+        driverProfile: {
+          create: {
+            name,
+            nim,
+            birthPlace,
+            birthDate: birth,
+            whatsapp: whatsapp ?? null,
+            idCardUrl: toUrl(files.idCard[0]),
+            studentCardUrl: toUrl(files.studentCard[0]),
+            simCardUrl: toUrl(files.simCard[0]),
+            facePhotoUrl: toUrl(files.facePhoto[0]),
+            status: "PENDING",
+          },
         },
-        include: { driverProfile: true }
-      });
+      },
+      include: { driverProfile: true },
+    });
 
-      // (opsi) tidak auto-login → arahkan user untuk signin
-      await logAudit(user.id, "DRIVER_REGISTER_WITH_UPLOAD", req);
-      return res.status(201).json(ok({
-        message: "Registered. Awaiting admin approval. Please sign in.",
-        driver: { id: user.driverProfile?.id, status: user.driverProfile?.status }
-      }));
-    } catch (err: any) {
-      if (err?.message?.includes("Invalid file type")) {
-        return res.status(400).json(fail("Hanya file gambar yang diperbolehkan"));
-      }
-      if (err?.code === "LIMIT_FILE_SIZE") {
-        return res.status(400).json(fail("Ukuran file maksimal 5MB"));
-      }
-      return res.status(500).json(fail("Internal server error"));
-    }
-  }
-);
+    await issueSession(res, user.id, user.role);
+    await logAudit(user.id, "DRIVER_REGISTER_EMAIL", req);
 
+    return res.json(
+      ok({
+        user: {
+          id: user.id,
+          role: user.role,
+          email: user.email,
+          driverProfile: user.driverProfile,
+        },
+        baseUrl: publicBaseUrl,
+      })
+    );
+  });
+});
+
+// LOGIN DRIVER (email + password)
 router.post("/login-email", async (req, res) => {
   const schema = z.object({
     email: z.string().email(),
-    password: z.string().min(6)
+    password: z.string().min(6),
   });
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json(fail("Invalid payload"));
+  if (!parsed.success) return res.status(400).json(fail("Payload tidak valid"));
 
   const { email, password } = parsed.data;
-  const user = await prisma.user.findUnique({ where: { email }, include: { driverProfile: true } });
+  const user = await prisma.user.findUnique({
+    where: { email },
+    include: { driverProfile: true },
+  });
+
   if (!user || !user.passwordHash || user.role !== "DRIVER") {
-    return res.status(401).json(fail("Invalid credentials"));
+    return res.status(401).json(fail("Email atau password salah"));
   }
 
   const okPass = await verifyPassword(password, user.passwordHash);
-  if (!okPass) return res.status(401).json(fail("Invalid credentials"));
+  if (!okPass) return res.status(401).json(fail("Email atau password salah"));
 
   await issueSession(res, user.id, user.role);
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await logAudit(user.id, "DRIVER_LOGIN_EMAIL", req);
 
-  res.json(ok({
-    user: { id: user.id, role: user.role, email: user.email },
-    driver: user.driverProfile // FE bisa cek status APPROVED/PENDING
-  }));
+  return res.json(
+    ok({
+      user: {
+        id: user.id,
+        role: user.role,
+        email: user.email,
+        driverProfile: user.driverProfile,
+      },
+      baseUrl: publicBaseUrl,
+    })
+  );
 });
 
 export default router;

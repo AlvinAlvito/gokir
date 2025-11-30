@@ -156,6 +156,7 @@ model DriverProfile {
   birthDate      DateTime?
   idCardUrl      String?
   studentCardUrl String?
+  simCardUrl     String?
   facePhotoUrl   String?
   whatsapp       String?
   address        String?

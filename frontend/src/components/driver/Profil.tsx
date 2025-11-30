@@ -27,6 +27,7 @@ type DriverProfile = {
   birthDate?: string | null;
   idCardUrl?: string | null;
   studentCardUrl?: string | null;
+  simCardUrl?: string | null;
   facePhotoUrl?: string | null;
   status: DriverStatus;
 };
@@ -46,9 +47,10 @@ export default function DriverProfilePage() {
   const [whatsapp, setWhatsapp] = useState("");
   const [address, setAddress] = useState("");
   const [birthPlace, setBirthPlace] = useState("");
-  const [birthDate, setBirthDate] = useState("");
-  const [idCardUrl, setIdCardUrl] = useState("");
-  const [studentCardUrl, setStudentCardUrl] = useState("");
+const [birthDate, setBirthDate] = useState("");
+const [idCardUrl, setIdCardUrl] = useState("");
+const [studentCardUrl, setStudentCardUrl] = useState("");
+const [simCardUrl, setSimCardUrl] = useState("");
 
   // form account
   const [username, setUsername] = useState("");
@@ -108,6 +110,7 @@ export default function DriverProfilePage() {
         setBirthDate(p.birthDate ? p.birthDate.split("T")[0] : "");
         setIdCardUrl(p.idCardUrl ?? "");
         setStudentCardUrl(p.studentCardUrl ?? "");
+        setSimCardUrl(p.simCardUrl ?? "");
       } catch (e: any) {
         setMsg(e.message || "Gagal memuat data");
       } finally {
@@ -206,6 +209,7 @@ export default function DriverProfilePage() {
         birthDate: birthDate || null,
         idCardUrl: idCardUrl.trim() || null,
         studentCardUrl: studentCardUrl.trim() || null,
+        simCardUrl: simCardUrl.trim() || null,
         ...(newfacePhotoUrl ? { photoUrl: newfacePhotoUrl } : {}),
       };
 
@@ -377,6 +381,12 @@ export default function DriverProfilePage() {
                 {profile?.studentCardUrl ? <a className="text-brand-500 hover:underline" href={buildFileUrl(profile.studentCardUrl)} target="_blank" rel="noreferrer">Lihat</a> : "—"}
               </div>
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-gray-500 dark:text-gray-400">SIM</Label>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:border-gray-800 dark:bg-gray-900 dark:text-white/90">
+                {profile?.simCardUrl ? <a className="text-brand-500 hover:underline" href={buildFileUrl(profile.simCardUrl)} target="_blank" rel="noreferrer">Lihat</a> : "—"}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -435,6 +445,10 @@ export default function DriverProfilePage() {
               <div>
                 <Label>URL KTM</Label>
                 <Input type="text" value={studentCardUrl} onChange={(e: any) => setStudentCardUrl(e.target.value)} placeholder="/uploads/ktm.jpg atau URL" />
+              </div>
+              <div>
+                <Label>URL SIM</Label>
+                <Input type="text" value={simCardUrl} onChange={(e: any) => setSimCardUrl(e.target.value)} placeholder="/uploads/sim.jpg atau URL" />
               </div>
             </div>
 

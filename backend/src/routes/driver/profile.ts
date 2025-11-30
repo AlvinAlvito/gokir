@@ -31,6 +31,7 @@ router.get("/me", async (req: any, res) => {
         birthDate: true,
         idCardUrl: true,
         studentCardUrl: true,
+        simCardUrl: true,
         facePhotoUrl: true, // <= pakai facePhotoUrl
         status: true,
       },
@@ -53,6 +54,7 @@ router.get("/me", async (req: any, res) => {
           birthDate: true,
           idCardUrl: true,
           studentCardUrl: true,
+          simCardUrl: true,
           facePhotoUrl: true,
           status: true,
         },
@@ -84,6 +86,7 @@ router.patch("/", async (req: any, res) => {
     birthDate: z.string().optional().nullable(), // parse to Date
     idCardUrl: z.string().optional().nullable(),
     studentCardUrl: z.string().optional().nullable(),
+    simCardUrl: z.string().optional().nullable(),
     photoUrl: z.string().optional().nullable() // FE kirim photoUrl => map ke facePhotoUrl
   });
 
@@ -93,7 +96,7 @@ router.patch("/", async (req: any, res) => {
     return res.status(400).json({ ok: false, error: { message: `Invalid payload: ${detail}` } });
   }
 
-  const { name, nim, whatsapp, address, birthPlace, birthDate, idCardUrl, studentCardUrl, photoUrl } = parsed.data;
+  const { name, nim, whatsapp, address, birthPlace, birthDate, idCardUrl, studentCardUrl, simCardUrl, photoUrl } = parsed.data;
   const birthDateVal = birthDate ? new Date(birthDate) : undefined;
   if (birthDate && Number.isNaN(birthDateVal?.getTime())) {
     return res.status(400).json({ ok: false, error: { message: "Invalid birthDate" } });
@@ -111,6 +114,7 @@ router.patch("/", async (req: any, res) => {
         ...(birthDate !== undefined ? { birthDate: birthDateVal ?? null } : {}),
         ...(idCardUrl !== undefined ? { idCardUrl } : {}),
         ...(studentCardUrl !== undefined ? { studentCardUrl } : {}),
+        ...(simCardUrl !== undefined ? { simCardUrl } : {}),
         ...(photoUrl !== undefined ? { facePhotoUrl: photoUrl } : {}), // map
       },
       create: {
@@ -123,6 +127,7 @@ router.patch("/", async (req: any, res) => {
         birthDate: birthDateVal ?? undefined,
         idCardUrl: idCardUrl ?? undefined,
         studentCardUrl: studentCardUrl ?? undefined,
+        simCardUrl: simCardUrl ?? undefined,
         facePhotoUrl: photoUrl ?? undefined,
         status: "PENDING",
       },
@@ -136,6 +141,7 @@ router.patch("/", async (req: any, res) => {
         birthDate: true,
         idCardUrl: true,
         studentCardUrl: true,
+        simCardUrl: true,
         facePhotoUrl: true,
         status: true,
       },

@@ -23,6 +23,7 @@ router.get("/", requireAuth, requireRole(["ADMIN","SUPERADMIN"]), async (req, re
         facePhotoUrl: true,
         idCardUrl: true,
         studentCardUrl: true,
+        simCardUrl: true,
         status: true,
         createdAt: true,
         user: {
@@ -133,7 +134,7 @@ router.get("/:id", requireAuth, requireRole(["ADMIN","SUPERADMIN"]), async (req,
       select: {
         id: true, name: true, nim: true, whatsapp: true, address: true,
         birthPlace: true, birthDate: true, idCardUrl: true, studentCardUrl: true,
-        facePhotoUrl: true, status: true, createdAt: true,
+        simCardUrl: true, facePhotoUrl: true, status: true, createdAt: true,
         user: {
           select: {
             id: true,

@@ -1,16 +1,21 @@
-import { Link } from "react-router";
+﻿import { Link } from "react-router";
 import Button from "../components/ui/button/Button";
 
 const features = [
-  { title: "Transportasi Cepat", desc: "Driver terlatih dan tersebar di berbagai wilayah kampus.", icon: "??" },
-  { title: "Antar Makanan", desc: "Pesan makanan dari toko sistem maupun toko luar dengan mudah.", icon: "??" },
-  { title: "Pembayaran Fleksibel", desc: "Dukungan cash dan QRIS, aman serta transparan.", icon: "??" },
+  { title: "Transportasi Cepat", desc: "Driver terlatih dan tersebar di berbagai wilayah kampus.", icon: "🚀" },
+  { title: "Antar Makanan", desc: "Pesan makanan dari toko sistem maupun toko luar dengan mudah.", icon: "🍜" },
+  { title: "Pembayaran Fleksibel", desc: "Dukungan cash dan QRIS, aman serta transparan.", icon: "💳" },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 text-white">
-      <header className="w-full border-b border-white/10 bg-slate-900/70 backdrop-blur">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 text-white relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-32 top-10 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute right-0 top-40 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
+      </div>
+
+      <header className="w-full border-b border-white/10 bg-slate-900/70 backdrop-blur z-10">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <Link to="/" className="flex items-center gap-3">
             <img src="/images/logo/logo.png" alt="Gokir" className="h-10 w-auto" />
@@ -31,11 +36,11 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="flex-1">
-        <section className="mx-auto flex max-w-6xl flex-col items-center gap-8 px-4 py-14 text-center md:flex-row md:text-left md:py-20">
+      <main className="flex-1 z-10">
+        <section id="layanan" className="mx-auto flex max-w-6xl flex-col items-center gap-10 px-4 py-14 text-center md:flex-row md:text-left md:py-20">
           <div className="flex-1 space-y-5">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-emerald-200">
-              Transportasi kampus � Delivery makanan � COD & QRIS
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-400/30">
+              Transportasi kampus • Delivery makanan • COD & QRIS
             </span>
             <h1 className="text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">
               Gokir, solusi antar jemput & pesan makanan untuk mahasiswa.
@@ -45,7 +50,7 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <Button size="sm" onClick={() => window.location.href = "/signin"}>Mulai sekarang</Button>
-              <Link to="/orders/ride" className="text-sm font-semibold text-emerald-200 hover:text-white">Lihat layanan &rarr;</Link>
+              <Link to="/orders/ride" className="text-sm font-semibold text-emerald-200 hover:text-white">Lihat layanan →</Link>
             </div>
             <div className="flex flex-wrap gap-6 text-left text-sm text-white/70">
               <div>
@@ -63,12 +68,12 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex-1">
-            <div className="rounded-3xl border border-emerald-400/30 bg-emerald-400/10 p-6 shadow-[0_20px_70px_-30px_rgba(16,185,129,0.7)]">
+            <div className="rounded-3xl border border-emerald-400/30 bg-emerald-400/10 p-6 shadow-[0_25px_90px_-40px_rgba(16,185,129,0.9)] backdrop-blur">
               <div className="space-y-3 text-left">
                 <p className="text-sm text-emerald-100">Simulasi rute</p>
                 <div className="h-64 rounded-2xl bg-[radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.25),rgba(15,23,42,0)),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.15),rgba(15,23,42,0)),linear-gradient(135deg,rgba(15,23,42,0.7),rgba(6,78,59,0.6))] border border-white/5 p-4 text-white">
-                  <p className="text-lg font-semibold">Kampus UINSU Sutomo ? Jalan Pelita</p>
-                  <p className="text-sm text-white/70">Estimasi 1.2 km � �8 menit � Rp6.000</p>
+                  <p className="text-lg font-semibold">Kampus UINSU Sutomo → Jalan Pelita</p>
+                  <p className="text-sm text-white/70">Estimasi 1.2 km • ±8 menit • Rp6.000</p>
                   <div className="mt-4 h-40 rounded-xl bg-black/20 flex items-center justify-center text-sm text-white/60 border border-white/5">
                     Preview rute akan tampil di aplikasi
                   </div>
@@ -116,27 +121,19 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-3">
-              <div className="flex items-center justify-between rounded-xl bg-slate-800/60 px-4 py-3">
-                <div>
-                  <p className="text-xs text-white/60">Total Driver</p>
-                  <p className="text-2xl font-bold">2</p>
+              {[
+                { label: "Total Driver", value: "2" },
+                { label: "Total Customer", value: "1" },
+                { label: "Total Store", value: "1" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between rounded-xl bg-slate-800/60 px-4 py-3 border border-white/5">
+                  <div>
+                    <p className="text-xs text-white/60">{item.label}</p>
+                    <p className="text-2xl font-bold">{item.value}</p>
+                  </div>
+                  <span className="text-xs text-emerald-300 font-semibold">100%</span>
                 </div>
-                <span className="text-xs text-emerald-300 font-semibold">100%</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-800/60 px-4 py-3">
-                <div>
-                  <p className="text-xs text-white/60">Total Customer</p>
-                  <p className="text-2xl font-bold">1</p>
-                </div>
-                <span className="text-xs text-emerald-300 font-semibold">100%</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-800/60 px-4 py-3">
-                <div>
-                  <p className="text-xs text-white/60">Total Store</p>
-                  <p className="text-2xl font-bold">1</p>
-                </div>
-                <span className="text-xs text-emerald-300 font-semibold">100%</span>
-              </div>
+              ))}
             </div>
           </div>
         </section>
@@ -165,7 +162,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-        <div className="mt-6 text-center text-xs text-white/60">� {new Date().getFullYear()} Gokir. All rights reserved.</div>
+        <div className="mt-6 text-center text-xs text-white/60">© {new Date().getFullYear()} Gokir. All rights reserved.</div>
       </footer>
     </div>
   );
